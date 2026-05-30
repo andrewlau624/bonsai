@@ -14,7 +14,7 @@ import * as gitOps from './git'
 import * as ptyMgr from './pty'
 import * as store from './store'
 import * as github from './github'
-import { openCodeWindow } from './main'
+import { openCodeWindow, openPrWindow } from './main'
 
 export function registerIpc(): void {
   // ---- Repos ----
@@ -129,6 +129,7 @@ export function registerIpc(): void {
 
   // ---- Code viewer window ----
   ipcMain.handle('window:openCode', (_e, cwd: string, file: string) => openCodeWindow(cwd, file))
+  ipcMain.handle('window:openPr', (_e, cwd: string, num: number) => openPrWindow(cwd, num))
   ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('app:reveal', (_e, p: string) => shell.openPath(p))
   ipcMain.handle('app:openInEditor', async (_e, p: string) => {
@@ -166,6 +167,12 @@ export function registerIpc(): void {
   ipcMain.handle('pr:comment', (_e, cwd: string, num: number, body: string) =>
     github.prComment(cwd, num, body),
   )
+  ipcMain.handle(
+    'pr:review',
+    (_e, cwd: string, num: number, event: 'approve' | 'request-changes' | 'comment', body: string) =>
+      github.prReview(cwd, num, event, body),
+  )
   ipcMain.handle('pr:accounts', () => github.ghAccounts())
   ipcMain.handle('pr:switchAccount', (_e, user: string) => github.ghSwitch(user))
+  ipcMain.handle('pr:checkLog', (_e, cwd: string, link: string) => github.checkLog(cwd, link))
 }

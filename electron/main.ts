@@ -49,6 +49,36 @@ export function openCodeWindow(cwd: string, file: string): void {
   cw.on('closed', () => codeWindows.delete(key))
 }
 
+const prWindows = new Map<string, BrowserWindow>()
+
+/** Open a pull request in its own window. */
+export function openPrWindow(cwd: string, num: number): void {
+  const key = `${cwd}#${num}`
+  const existing = prWindows.get(key)
+  if (existing && !existing.isDestroyed()) {
+    existing.focus()
+    return
+  }
+  const w = new BrowserWindow({
+    width: 880,
+    height: 860,
+    backgroundColor: '#0b0f14',
+    titleBarStyle: 'hiddenInset',
+    title: `Bonsai — PR #${num}`,
+    webPreferences: {
+      preload: path.join(DIST_ELECTRON, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  })
+  const params = `view=pr&cwd=${encodeURIComponent(cwd)}&num=${num}`
+  if (DEV_SERVER_URL) w.loadURL(`${DEV_SERVER_URL}?${params}`)
+  else w.loadFile(path.join(DIST_RENDERER, 'index.html'), { search: params })
+  prWindows.set(key, w)
+  w.on('closed', () => prWindows.delete(key))
+}
+
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1280,

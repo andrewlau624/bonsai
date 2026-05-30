@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useApp, type DrawerPanel } from '../store'
 import { Icon } from './Icon'
 import { DiffView } from './DiffView'
-import { Markdown } from './Markdown'
-import type { FileChange, PullRequest, PrCheck } from '../../shared/types'
+import { PrView } from './PrView'
+import type { FileChange, PullRequest } from '../../shared/types'
 
 const STATUS_LABEL: Record<FileChange['status'], string> = {
   modified: 'M',
@@ -215,48 +215,6 @@ function LogPanel() {
 
 /* --------------------------- Pull requests --------------------------- */
 
-const CHECK_ICON: Record<PrCheck['bucket'], { name: Parameters<typeof Icon>[0]['name']; cls: string }> = {
-  pass: { name: 'check', cls: 'pass' },
-  fail: { name: 'close', cls: 'fail' },
-  pending: { name: 'history', cls: 'pending' },
-  skip: { name: 'dot', cls: 'skip' },
-  cancel: { name: 'close', cls: 'skip' },
-}
-
-function Checks({ checks }: { checks: PrCheck[] }) {
-  if (checks.length === 0) return null
-  const pass = checks.filter((c) => c.bucket === 'pass').length
-  const fail = checks.filter((c) => c.bucket === 'fail').length
-  const pending = checks.filter((c) => c.bucket === 'pending').length
-  return (
-    <div className="pr-checks">
-      <div className="pr-checks-head">
-        <Icon name="sync" size={13} /> Checks
-        <span className="pr-checks-sum">
-          {pass} passed{fail ? `, ${fail} failed` : ''}{pending ? `, ${pending} pending` : ''}
-        </span>
-      </div>
-      {checks.map((c, i) => {
-        const ic = CHECK_ICON[c.bucket]
-        return (
-          <button
-            key={i}
-            className="pr-check"
-            onClick={() => c.link && window.bonsai.openExternal(c.link)}
-            title={c.link ? 'Open check' : ''}
-          >
-            <span className={`check-ic ${ic.cls}`}>
-              <Icon name={ic.name} size={12} />
-            </span>
-            <span className="ellipsis">{c.name}</span>
-            {c.workflow && <span className="check-wf ellipsis">{c.workflow}</span>}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 function PrCreateForm({ onDone }: { onDone: () => void }) {
   const { createPr, activeTab, prBusy } = useApp()
   const [title, setTitle] = useState('')
@@ -296,126 +254,23 @@ function PrCreateForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-function PrEditForm({
-  pr,
-  onDone,
-}: {
-  pr: { number: number; title: string; body: string }
-  onDone: () => void
-}) {
-  const { editPr, prBusy } = useApp()
-  const [title, setTitle] = useState(pr.title)
-  const [body, setBody] = useState(pr.body)
-  return (
-    <div className="pr-form">
-      <div className="pr-form-head">Edit PR #{pr.number}</div>
-      <input className="pr-input" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="pr-textarea" rows={8} value={body} onChange={(e) => setBody(e.target.value)} />
-      <div className="modal-actions">
-        <button className="btn ghost" onClick={onDone}>
-          Cancel
-        </button>
-        <button
-          className="btn primary"
-          disabled={!title.trim() || prBusy}
-          onClick={async () => {
-            await editPr(pr.number, { title: title.trim(), body })
-            onDone()
-          }}
-        >
-          {prBusy ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
 function PrDetail() {
-  const { prDetail, prComments, closePrDetail, addPrComment, prBusy } = useApp()
-  const [editing, setEditing] = useState(false)
-  const [reply, setReply] = useState('')
+  const { prDetail, prComments, closePrDetail, addPrComment, reviewPr, editPr, openPrInWindow, prBusy, activeTab } =
+    useApp()
   if (!prDetail) return null
-  if (editing) return <PrEditForm pr={prDetail} onDone={() => setEditing(false)} />
+  const tab = activeTab()
   return (
-    <div className="sc-panel">
-      <div className="panel-head">
-        <button className="icon-btn" onClick={closePrDetail} title="Back to PR list">
-          <Icon name="back" size={16} />
-        </button>
-        <span className="ellipsis panel-title">
-          #{prDetail.number} {prDetail.title}
-        </span>
-        <button className="btn ghost sm" onClick={() => setEditing(true)}>
-          Edit
-        </button>
-      </div>
-      <div className="panel-scroll pr-detail">
-        <div className="pr-meta">
-          <span className={`pr-state ${prDetail.state.toLowerCase()}`}>
-            {prDetail.isDraft ? 'Draft' : prDetail.state}
-          </span>
-          <span className="pr-refs">
-            {prDetail.baseRefName} ← {prDetail.headRefName}
-          </span>
-        </div>
-        <div className="pr-stats">
-          <span className="add">+{prDetail.additions}</span>
-          <span className="del">−{prDetail.deletions}</span>
-          <span className="dim">{prDetail.commits} commits</span>
-          <span className="dim">by {prDetail.author}</span>
-        </div>
-
-        <Checks checks={prDetail.checks} />
-
-        <div className="pr-card">
-          <div className="pr-card-author">{prDetail.author}</div>
-          {prDetail.body ? <Markdown>{prDetail.body}</Markdown> : <span className="dim">No description.</span>}
-        </div>
-
-        {prComments.length > 0 && (
-          <div className="pr-comments">
-            {prComments.map((c, i) => (
-              <div className="pr-card" key={i}>
-                <div className="pr-card-author">
-                  {c.author}
-                  {c.kind === 'review' && c.state && (
-                    <span className={`review-state ${c.state.toLowerCase()}`}>
-                      {c.state.replace('_', ' ').toLowerCase()}
-                    </span>
-                  )}
-                </div>
-                {c.body ? <Markdown>{c.body}</Markdown> : <span className="dim">(no comment)</span>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="pr-reply">
-          <textarea
-            className="pr-textarea"
-            rows={3}
-            placeholder="Add a comment…"
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-          />
-          <div className="pr-reply-actions">
-            <button className="btn ghost sm" onClick={() => window.bonsai.openExternal(prDetail.url)}>
-              <Icon name="external" size={13} /> GitHub
-            </button>
-            <button
-              className="btn primary sm"
-              disabled={!reply.trim() || prBusy}
-              onClick={async () => {
-                await addPrComment(prDetail.number, reply)
-                setReply('')
-              }}
-            >
-              Comment
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PrView
+      cwd={tab?.cwd ?? ''}
+      detail={prDetail}
+      comments={prComments}
+      busy={prBusy}
+      onBack={closePrDetail}
+      onOpenWindow={() => openPrInWindow(prDetail.number)}
+      onSave={(title, body) => editPr(prDetail.number, { title, body })}
+      onComment={(body) => addPrComment(prDetail.number, body)}
+      onReview={(event, body) => reviewPr(prDetail.number, event, body)}
+    />
   )
 }
 
@@ -452,8 +307,10 @@ function AccountSwitcher() {
 }
 
 function PrList() {
-  const { prStatus, prBusy, viewPr, loadPrs } = useApp()
+  const { prStatus, prBusy, viewPr, loadPrs, openPrInWindow, prBranchOnly, togglePrBranchOnly, activeTab } =
+    useApp()
   const [creating, setCreating] = useState(false)
+  const branch = activeTab()?.branch
 
   if (creating) return <PrCreateForm onDone={() => setCreating(false)} />
   if (prBusy && !prStatus) return <div className="sc-empty">Loading pull requests…</div>
@@ -482,7 +339,8 @@ function PrList() {
     )
   }
 
-  const prs: PullRequest[] = prStatus?.available ? prStatus.prs : []
+  const all: PullRequest[] = prStatus?.available ? prStatus.prs : []
+  const prs = prBranchOnly && branch ? all.filter((p) => p.headRefName === branch) : all
   return (
     <div className="sc-list">
       <div className="pr-toolbar">
@@ -494,19 +352,37 @@ function PrList() {
           <Icon name="fetch" size={14} />
         </button>
       </div>
+      <button
+        className={`pr-filter ${prBranchOnly ? 'on' : ''}`}
+        onClick={togglePrBranchOnly}
+        title="Show only PRs for the current branch"
+      >
+        <Icon name={prBranchOnly ? 'check' : 'branch'} size={12} />
+        This branch only{branch ? ` (${branch})` : ''}
+      </button>
       {prs.length === 0 ? (
         <div className="sc-empty">
-          <p>No open pull requests</p>
+          <p>{prBranchOnly ? 'No PR for this branch' : 'No open pull requests'}</p>
           <span className="dim">Create one from the current branch.</span>
         </div>
       ) : (
         prs.map((pr) => (
-          <button key={pr.number} className="pr-row" onClick={() => viewPr(pr.number)}>
+          <div key={pr.number} className="pr-row" onClick={() => viewPr(pr.number)}>
             <span className="pr-num">#{pr.number}</span>
             <span className="ellipsis pr-title">{pr.title}</span>
             {pr.isDraft && <span className="badge wt">draft</span>}
             <span className="pr-branch ellipsis">{pr.headRefName}</span>
-          </button>
+            <span
+              className="icon-btn pr-row-open"
+              title="Open in window"
+              onClick={(e) => {
+                e.stopPropagation()
+                openPrInWindow(pr.number)
+              }}
+            >
+              <Icon name="external" size={13} />
+            </span>
+          </div>
         ))
       )}
     </div>

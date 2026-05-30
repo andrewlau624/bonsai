@@ -240,14 +240,24 @@ export interface BonsaiApi {
     ): Promise<{ url: string }>
     edit(cwd: string, num: number, data: { title: string; body: string }): Promise<void>
     comment(cwd: string, num: number, body: string): Promise<void>
+    review(
+      cwd: string,
+      num: number,
+      event: 'approve' | 'request-changes' | 'comment',
+      body: string,
+    ): Promise<void>
     accounts(): Promise<GhAccount[]>
     switchAccount(user: string): Promise<void>
+    /** Fetch the CI log for a check given its details URL. */
+    checkLog(cwd: string, link: string): Promise<string>
   }
   window: {
     /** Open the standalone code viewer window for a worktree (optionally at a file). */
     openCode(cwd: string, file: string): Promise<void>
     /** (Code window) fired when the main window requests navigation to a file. */
     onNavigate(cb: (file: string) => void): () => void
+    /** Open a pull request in its own window. */
+    openPr(cwd: string, num: number): Promise<void>
   }
   openExternal(url: string): Promise<void>
   app: {

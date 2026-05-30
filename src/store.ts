@@ -120,7 +120,11 @@ interface AppState {
   createPr: (data: { title: string; body: string; draft?: boolean }) => Promise<string | null>
   editPr: (num: number, data: { title: string; body: string }) => Promise<void>
   addPrComment: (num: number, body: string) => Promise<void>
+  reviewPr: (num: number, event: 'approve' | 'request-changes' | 'comment', body: string) => Promise<void>
+  openPrInWindow: (num: number) => void
   closePrDetail: () => void
+  prBranchOnly: boolean
+  togglePrBranchOnly: () => void
   loadGhAccounts: () => Promise<void>
   switchGhAccount: (user: string) => Promise<void>
 
@@ -179,6 +183,7 @@ export const useApp = create<AppState>((set, get) => ({
   prComments: [],
   prBusy: false,
   ghAccounts: [],
+  prBranchOnly: false,
 
   commitsLog: [],
 
@@ -590,6 +595,28 @@ export const useApp = create<AppState>((set, get) => ({
       set({ prBusy: false })
     }
   },
+
+  reviewPr: async (num, event, body) => {
+    const tab = get().activeTab()
+    if (!tab) return
+    set({ prBusy: true })
+    try {
+      await window.bonsai.pr.review(tab.cwd, num, event, body)
+      const prComments = await window.bonsai.pr.comments(tab.cwd, num)
+      set({ prComments })
+    } catch (err) {
+      alert(`Review failed:\n${(err as Error).message}`)
+    } finally {
+      set({ prBusy: false })
+    }
+  },
+
+  openPrInWindow: (num) => {
+    const tab = get().activeTab()
+    if (tab) void window.bonsai.window.openPr(tab.cwd, num)
+  },
+
+  togglePrBranchOnly: () => set((s) => ({ prBranchOnly: !s.prBranchOnly })),
 
   closePrDetail: () => set({ prDetail: null, prComments: [] }),
 

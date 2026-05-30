@@ -10,18 +10,31 @@ import './index.css'
 const CodeViewer = lazy(() =>
   import('./components/CodeViewer').then((m) => ({ default: m.CodeViewer })),
 )
+const PrWindow = lazy(() => import('./components/PrWindow').then((m) => ({ default: m.PrWindow })))
 
 const params = new URLSearchParams(window.location.search)
-const isCodeWindow = params.get('view') === 'code'
+const view = params.get('view')
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    {isCodeWindow ? (
+function Root() {
+  if (view === 'code') {
+    return (
       <Suspense fallback={<div className="cv-loading">Loading…</div>}>
         <CodeViewer cwd={params.get('cwd') ?? ''} initialFile={params.get('file') ?? ''} />
       </Suspense>
-    ) : (
-      <App />
-    )}
+    )
+  }
+  if (view === 'pr') {
+    return (
+      <Suspense fallback={<div className="cv-loading">Loading…</div>}>
+        <PrWindow cwd={params.get('cwd') ?? ''} num={Number(params.get('num') ?? 0)} />
+      </Suspense>
+    )
+  }
+  return <App />
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <Root />
   </React.StrictMode>,
 )

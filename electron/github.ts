@@ -146,6 +146,18 @@ export async function prComment(cwd: string, num: number, body: string): Promise
   await gh(cwd, ['pr', 'comment', String(num), '--body', body])
 }
 
+export async function prReview(
+  cwd: string,
+  num: number,
+  event: 'approve' | 'request-changes' | 'comment',
+  body: string,
+): Promise<void> {
+  const flag = event === 'approve' ? '--approve' : event === 'request-changes' ? '--request-changes' : '--comment'
+  const args = ['pr', 'review', String(num), flag]
+  if (body.trim()) args.push('--body', body)
+  await gh(cwd, args)
+}
+
 /** List the GitHub accounts `gh` knows about, marking the active one. */
 export async function ghAccounts(): Promise<GhAccount[]> {
   if (!(await hasGh())) return []
@@ -180,6 +192,28 @@ export async function ghAccounts(): Promise<GhAccount[]> {
 
 export async function ghSwitch(user: string): Promise<void> {
   await exec('gh', ['auth', 'switch', '--hostname', 'github.com', '--user', user])
+}
+
+/**
+ * Fetch the CI log for a check, given its GitHub details URL (which encodes the
+ * run and job ids, e.g. .../actions/runs/<run>/job/<job>).
+ */
+export async function checkLog(cwd: string, link: string): Promise<string> {
+  const jobMatch = /\/job\/(\d+)/.exec(link)
+  const runMatch = /\/runs\/(\d+)/.exec(link)
+  let out = ''
+  try {
+    if (jobMatch) out = await gh(cwd, ['run', 'view', '--job', jobMatch[1], '--log'])
+    else if (runMatch) out = await gh(cwd, ['run', 'view', runMatch[1], '--log'])
+    else return 'No log available for this check (not a GitHub Actions run).'
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string }
+    out = err.stdout || err.stderr || 'Could not fetch log.'
+  }
+  // Logs can be huge — keep the tail, which is where failures live.
+  const MAX = 200 * 1024
+  if (out.length > MAX) out = '… (truncated) …\n' + out.slice(out.length - MAX)
+  return out
 }
 
 export async function prCreate(

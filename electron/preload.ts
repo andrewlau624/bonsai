@@ -92,8 +92,11 @@ const api: BonsaiApi = {
     edit: (cwd, num, data) => ipcRenderer.invoke('pr:edit', cwd, num, data) as Promise<void>,
     comment: (cwd, num, body) =>
       ipcRenderer.invoke('pr:comment', cwd, num, body) as Promise<void>,
+    review: (cwd, num, event, body) =>
+      ipcRenderer.invoke('pr:review', cwd, num, event, body) as Promise<void>,
     accounts: () => ipcRenderer.invoke('pr:accounts') as Promise<import('../shared/types').GhAccount[]>,
     switchAccount: (user) => ipcRenderer.invoke('pr:switchAccount', user) as Promise<void>,
+    checkLog: (cwd, link) => ipcRenderer.invoke('pr:checkLog', cwd, link) as Promise<string>,
   },
   window: {
     openCode: (cwd, file) => ipcRenderer.invoke('window:openCode', cwd, file) as Promise<void>,
@@ -102,6 +105,7 @@ const api: BonsaiApi = {
       ipcRenderer.on('code:navigate', listener)
       return () => ipcRenderer.removeListener('code:navigate', listener)
     },
+    openPr: (cwd, num) => ipcRenderer.invoke('window:openPr', cwd, num) as Promise<void>,
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) as Promise<void>,
   app: {
