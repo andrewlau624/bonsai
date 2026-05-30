@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
 import path from 'node:path'
 import { registerIpc } from './ipc'
 import { killAll } from './pty'
@@ -138,18 +138,37 @@ function createWindow(): void {
     win.loadFile(path.join(DIST_RENDERER, 'index.html'))
   }
 
-  // Block accidental reload (⌘R / ⌘⇧R / F5) — reloading the renderer would
-  // orphan running PTYs and their child processes (dev servers / ports).
+  // Block whole-app reload (F5) — it would orphan running PTYs. ⌘R is handled
+  // by the menu accelerator, which reloads only the active preview.
   win.webContents.on('before-input-event', (event, input) => {
-    const key = input.key?.toLowerCase()
-    const reload = (input.meta || input.control) && key === 'r'
-    if (reload || key === 'f5') event.preventDefault()
+    if (input.key?.toLowerCase() === 'f5') event.preventDefault()
   })
 
   win.on('closed', () => {
     win = null
   })
 }
+
+// Give webviews (the localhost previews) a real right-click menu.
+app.on('web-contents-created', (_e, contents) => {
+  if (contents.getType() !== 'webview') return
+  contents.on('context-menu', (_ev, params) => {
+    const can = params.editFlags
+    const menu = Menu.buildFromTemplate([
+      { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
+      { label: 'Forward', enabled: contents.canGoForward(), click: () => contents.goForward() },
+      { label: 'Reload', click: () => contents.reload() },
+      { type: 'separator' },
+      { role: 'cut', enabled: can.canCut },
+      { role: 'copy', enabled: can.canCopy },
+      { role: 'paste', enabled: can.canPaste },
+      { role: 'selectAll' },
+      { type: 'separator' },
+      { label: 'Inspect element', click: () => contents.inspectElement(params.x, params.y) },
+    ])
+    menu.popup()
+  })
+})
 
 app.whenReady().then(() => {
   registerIpc()

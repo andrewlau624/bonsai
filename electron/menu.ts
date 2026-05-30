@@ -59,7 +59,14 @@ export function buildMenu(): void {
     {
       label: 'View',
       submenu: [
-        // Reload intentionally omitted — it would orphan running terminals.
+        // App reload is intentionally omitted (it would orphan terminals). ⌘R
+        // reloads only the active localhost preview.
+        {
+          label: 'Reload Preview',
+          accelerator: 'CmdOrCtrl+R',
+          click: () =>
+            BrowserWindow.getAllWindows()[0]?.webContents.send('menu:reload-preview'),
+        },
         { role: 'toggleDevTools' as const },
         { type: 'separator' as const },
         { role: 'resetZoom' as const },

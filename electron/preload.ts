@@ -94,6 +94,10 @@ const api: BonsaiApi = {
     bump: (repoId, command) =>
       ipcRenderer.invoke('usage:bump', repoId, command) as Promise<Record<string, number>>,
   },
+  branchPrefs: {
+    get: (repoId) => ipcRenderer.invoke('branchPrefs:get', repoId) as Promise<string[] | null>,
+    set: (repoId, names) => ipcRenderer.invoke('branchPrefs:set', repoId, names) as Promise<void>,
+  },
   pr: {
     list: (cwd) => ipcRenderer.invoke('pr:list', cwd) as Promise<PrStatus>,
     view: (cwd, num) => ipcRenderer.invoke('pr:view', cwd, num) as Promise<PullRequestDetail>,
@@ -144,6 +148,11 @@ const api: BonsaiApi = {
     const listener = () => cb()
     ipcRenderer.on('menu:open-settings', listener)
     return () => ipcRenderer.removeListener('menu:open-settings', listener)
+  },
+  onReloadPreview: (cb) => {
+    const listener = () => cb()
+    ipcRenderer.on('menu:reload-preview', listener)
+    return () => ipcRenderer.removeListener('menu:reload-preview', listener)
   },
 }
 

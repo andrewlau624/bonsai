@@ -92,6 +92,8 @@ interface AppState {
   searchOpen: boolean
   branchFilter: string
   modal: Modal
+  branchPrefsByRepo: Record<string, string[] | null>
+  branchPicker: string | null // repoId whose picker is open
 
   config: AppConfig | null
   settingsOpen: boolean
@@ -176,6 +178,10 @@ interface AppState {
   createBranch: (repoId: string, name: string) => Promise<void>
   requestDeleteBranch: (repoId: string, branch: string) => void
   deleteBranch: (repoId: string, branch: string) => Promise<void>
+  loadBranchPrefs: (repoId: string) => Promise<void>
+  openBranchPicker: (repoId: string) => void
+  closeBranchPicker: () => void
+  setIncludedBranches: (repoId: string, names: string[]) => Promise<void>
 
   mode: (key: string) => boolean
   setSettingsOpen: (v: boolean) => void
@@ -223,6 +229,8 @@ export const useApp = create<AppState>((set, get) => ({
   searchOpen: false,
   branchFilter: '',
   modal: null,
+  branchPrefsByRepo: {},
+  branchPicker: null,
 
   config: null,
   settingsOpen: false,
@@ -293,6 +301,20 @@ export const useApp = create<AppState>((set, get) => ({
   reloadBranches: async (repoId) => {
     const branches = await window.bonsai.repos.branches(repoId)
     set((s) => ({ branchesByRepo: { ...s.branchesByRepo, [repoId]: branches } }))
+    void get().loadBranchPrefs(repoId)
+  },
+
+  loadBranchPrefs: async (repoId) => {
+    const prefs = await window.bonsai.branchPrefs.get(repoId)
+    set((s) => ({ branchPrefsByRepo: { ...s.branchPrefsByRepo, [repoId]: prefs } }))
+  },
+
+  openBranchPicker: (repoId) => set({ branchPicker: repoId }),
+  closeBranchPicker: () => set({ branchPicker: null }),
+
+  setIncludedBranches: async (repoId, names) => {
+    await window.bonsai.branchPrefs.set(repoId, names)
+    set((s) => ({ branchPrefsByRepo: { ...s.branchPrefsByRepo, [repoId]: names } }))
   },
 
   openBranch: async (repoId, branch, forceNewTab = false) => {

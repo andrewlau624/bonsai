@@ -130,6 +130,10 @@ export function registerIpc(): void {
   ipcMain.handle('commands:save', (_e, repoId: string, list: SavedCommand[]) =>
     store.setCommands(repoId, list),
   )
+  ipcMain.handle('branchPrefs:get', (_e, repoId: string) => store.getBranchPrefs(repoId))
+  ipcMain.handle('branchPrefs:set', (_e, repoId: string, names: string[]) =>
+    store.setBranchPrefs(repoId, names),
+  )
   ipcMain.handle('usage:get', (_e, repoId: string) => store.getUsage(repoId))
   ipcMain.handle('usage:bump', (_e, repoId: string, command: string) =>
     store.bumpUsage(repoId, command),

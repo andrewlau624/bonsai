@@ -287,6 +287,11 @@ export interface BonsaiApi {
     get(repoId: string): Promise<Record<string, number>>
     bump(repoId: string, command: string): Promise<Record<string, number>>
   }
+  branchPrefs: {
+    /** Included branch names, or null if the repo hasn't been curated (= show all). */
+    get(repoId: string): Promise<string[] | null>
+    set(repoId: string, names: string[]): Promise<void>
+  }
   pr: {
     list(cwd: string): Promise<PrStatus>
     view(cwd: string, num: number): Promise<PullRequestDetail>
@@ -335,4 +340,5 @@ export interface BonsaiApi {
     openInEditor(path: string): Promise<boolean>
   }
   onOpenSettings(cb: () => void): () => void
+  onReloadPreview(cb: () => void): () => void
 }

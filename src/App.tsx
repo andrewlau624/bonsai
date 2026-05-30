@@ -8,6 +8,7 @@ import { Modal } from './components/Modal'
 import { Settings } from './components/Settings'
 import { CommandBar } from './components/CommandBar'
 import { CommandPalette } from './components/CommandPalette'
+import { BranchPicker } from './components/BranchPicker'
 import { Preview } from './components/Preview'
 import { PortsMenu, previewLabel } from './components/PortsMenu'
 import { Icon } from './components/Icon'
@@ -40,6 +41,18 @@ export default function App() {
   useEffect(() => {
     void init()
   }, [init])
+
+  useEffect(() => {
+    const offReload = window.bonsai.onReloadPreview(() => {
+      const active = useApp.getState().activePane
+      if (active === 'terminal') return
+      const wv = document.querySelector<HTMLElement & { reload: () => void }>(
+        `.pane-preview[data-id="${active}"] webview`,
+      )
+      wv?.reload?.()
+    })
+    return offReload
+  }, [])
 
   useEffect(() => {
     const off = window.bonsai.onOpenSettings(() => setSettingsOpen(true))
@@ -184,6 +197,7 @@ export default function App() {
                 <div
                   key={pt.id}
                   className="pane-preview"
+                  data-id={pt.id}
                   style={{ display: activePane === pt.id ? 'block' : 'none' }}
                 >
                   <Preview id={pt.id} url={pt.url} />
@@ -198,6 +212,7 @@ export default function App() {
       <Modal />
       <Settings />
       <CommandPalette />
+      <BranchPicker />
     </div>
   )
 }

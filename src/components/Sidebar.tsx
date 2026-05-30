@@ -87,12 +87,25 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
 }
 
 function RepoNode({ repo }: { repo: Repo }) {
-  const { expandedRepoIds, branchesByRepo, loading, branchFilter, toggleRepo, removeRepo, openModal } =
-    useApp()
+  const {
+    expandedRepoIds,
+    branchesByRepo,
+    branchPrefsByRepo,
+    loading,
+    branchFilter,
+    toggleRepo,
+    removeRepo,
+    openModal,
+    openBranchPicker,
+  } = useApp()
   const expanded = expandedRepoIds.has(repo.id)
   const all = branchesByRepo[repo.id] ?? []
+  const prefs = branchPrefsByRepo[repo.id]
   const filter = branchFilter.trim().toLowerCase()
-  const branches = filter ? all.filter((b) => b.name.toLowerCase().includes(filter)) : all
+  // Curated set (if the user picked branches); current branch always stays visible.
+  const curated = prefs ? all.filter((b) => prefs.includes(b.name) || b.current) : all
+  const branches = filter ? curated.filter((b) => b.name.toLowerCase().includes(filter)) : curated
+  const hidden = all.length - curated.length
   const isLoading = loading.has(repo.id)
 
   return (
@@ -106,6 +119,13 @@ function RepoNode({ repo }: { repo: Repo }) {
           <span className="ellipsis repo-name">{repo.name}</span>
         </button>
         <div className="row-actions">
+          <button
+            className="icon-btn"
+            title="Choose which branches to show"
+            onClick={() => openBranchPicker(repo.id)}
+          >
+            <Icon name="sliders" size={14} />
+          </button>
           <button
             className="icon-btn"
             title="New branch"
@@ -126,11 +146,16 @@ function RepoNode({ repo }: { repo: Repo }) {
         <div className="branch-list">
           {isLoading && <div className="row muted">loading branches…</div>}
           {!isLoading && branches.length === 0 && (
-            <div className="row muted">{filter ? 'no matches' : 'no branches'}</div>
+            <div className="row muted">{filter ? 'no matches' : 'no branches shown'}</div>
           )}
           {branches.map((b) => (
             <BranchRow key={b.name} repo={repo} branch={b} />
           ))}
+          {!filter && hidden > 0 && (
+            <button className="row muted hidden-row" onClick={() => openBranchPicker(repo.id)}>
+              {hidden} hidden — choose branches
+            </button>
+          )}
         </div>
       )}
     </div>
