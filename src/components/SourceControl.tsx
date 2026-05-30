@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useApp, type DrawerPanel } from '../store'
 import { Icon } from './Icon'
 import { DiffView } from './DiffView'
-import type { FileChange, PullRequest } from '../../shared/types'
+import { Markdown } from './Markdown'
+import type { FileChange, PullRequest, PrCheck } from '../../shared/types'
 
 const STATUS_LABEL: Record<FileChange['status'], string> = {
   modified: 'M',
@@ -27,7 +28,7 @@ function FileRow({ file, staged }: { file: FileChange; staged: boolean }) {
           {file.deletions ? <span className="del">−{file.deletions}</span> : null}
         </span>
       )}
-      <button
+      <span
         className="icon-btn sc-toggle"
         title={staged ? 'Unstage' : 'Stage'}
         onClick={(e) => {
@@ -36,7 +37,7 @@ function FileRow({ file, staged }: { file: FileChange; staged: boolean }) {
         }}
       >
         <Icon name={staged ? 'close' : 'plus'} size={13} />
-      </button>
+      </span>
     </div>
   )
 }
@@ -162,7 +163,10 @@ function FilesPanel() {
       </div>
       <div className="files-list">
         {filesDir && (
-          <button className="sc-file" onClick={() => browseFiles(filesDir.split('/').slice(0, -1).join('/'))}>
+          <button
+            className="sc-file"
+            onClick={() => browseFiles(filesDir.split('/').slice(0, -1).join('/'))}
+          >
             <Icon name="folder" size={14} className="i-branch" />
             <span className="sc-path">..</span>
           </button>
@@ -173,7 +177,11 @@ function FilesPanel() {
             className="sc-file"
             onClick={() => (e.type === 'dir' ? browseFiles(e.path) : openCode(e.path))}
           >
-            <Icon name={e.type === 'dir' ? 'folder' : 'file'} size={14} className={e.type === 'dir' ? 'i-branch' : 'i-term'} />
+            <Icon
+              name={e.type === 'dir' ? 'folder' : 'file'}
+              size={14}
+              className={e.type === 'dir' ? 'i-branch' : 'i-file'}
+            />
             <span className="ellipsis sc-path">{e.name}</span>
           </button>
         ))}
@@ -183,7 +191,71 @@ function FilesPanel() {
   )
 }
 
+/* ------------------------------- Log ------------------------------- */
+
+function LogPanel() {
+  const { commitsLog } = useApp()
+  if (commitsLog.length === 0) return <div className="sc-empty">No commits yet.</div>
+  return (
+    <div className="sc-list">
+      {commitsLog.map((c) => (
+        <div className="log-row" key={c.hash}>
+          <span className="log-hash">{c.shortHash}</span>
+          <div className="log-info">
+            <span className="log-subject ellipsis">{c.subject}</span>
+            <span className="log-meta">
+              {c.author} · {c.relative}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /* --------------------------- Pull requests --------------------------- */
+
+const CHECK_ICON: Record<PrCheck['bucket'], { name: Parameters<typeof Icon>[0]['name']; cls: string }> = {
+  pass: { name: 'check', cls: 'pass' },
+  fail: { name: 'close', cls: 'fail' },
+  pending: { name: 'history', cls: 'pending' },
+  skip: { name: 'dot', cls: 'skip' },
+  cancel: { name: 'close', cls: 'skip' },
+}
+
+function Checks({ checks }: { checks: PrCheck[] }) {
+  if (checks.length === 0) return null
+  const pass = checks.filter((c) => c.bucket === 'pass').length
+  const fail = checks.filter((c) => c.bucket === 'fail').length
+  const pending = checks.filter((c) => c.bucket === 'pending').length
+  return (
+    <div className="pr-checks">
+      <div className="pr-checks-head">
+        <Icon name="sync" size={13} /> Checks
+        <span className="pr-checks-sum">
+          {pass} passed{fail ? `, ${fail} failed` : ''}{pending ? `, ${pending} pending` : ''}
+        </span>
+      </div>
+      {checks.map((c, i) => {
+        const ic = CHECK_ICON[c.bucket]
+        return (
+          <button
+            key={i}
+            className="pr-check"
+            onClick={() => c.link && window.bonsai.openExternal(c.link)}
+            title={c.link ? 'Open check' : ''}
+          >
+            <span className={`check-ic ${ic.cls}`}>
+              <Icon name={ic.name} size={12} />
+            </span>
+            <span className="ellipsis">{c.name}</span>
+            {c.workflow && <span className="check-wf ellipsis">{c.workflow}</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 function PrCreateForm({ onDone }: { onDone: () => void }) {
   const { createPr, activeTab, prBusy } = useApp()
@@ -197,8 +269,8 @@ function PrCreateForm({ onDone }: { onDone: () => void }) {
       <input className="pr-input" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
       <textarea
         className="pr-textarea"
-        placeholder="Description"
-        rows={5}
+        placeholder="Description (markdown)"
+        rows={6}
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
@@ -224,7 +296,13 @@ function PrCreateForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-function PrEditForm({ pr, onDone }: { pr: { number: number; title: string; body: string }; onDone: () => void }) {
+function PrEditForm({
+  pr,
+  onDone,
+}: {
+  pr: { number: number; title: string; body: string }
+  onDone: () => void
+}) {
   const { editPr, prBusy } = useApp()
   const [title, setTitle] = useState(pr.title)
   const [body, setBody] = useState(pr.body)
@@ -232,7 +310,7 @@ function PrEditForm({ pr, onDone }: { pr: { number: number; title: string; body:
     <div className="pr-form">
       <div className="pr-form-head">Edit PR #{pr.number}</div>
       <input className="pr-input" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="pr-textarea" rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
+      <textarea className="pr-textarea" rows={8} value={body} onChange={(e) => setBody(e.target.value)} />
       <div className="modal-actions">
         <button className="btn ghost" onClick={onDone}>
           Cancel
@@ -253,8 +331,9 @@ function PrEditForm({ pr, onDone }: { pr: { number: number; title: string; body:
 }
 
 function PrDetail() {
-  const { prDetail, closePrDetail } = useApp()
+  const { prDetail, prComments, closePrDetail, addPrComment, prBusy } = useApp()
   const [editing, setEditing] = useState(false)
+  const [reply, setReply] = useState('')
   if (!prDetail) return null
   if (editing) return <PrEditForm pr={prDetail} onDone={() => setEditing(false)} />
   return (
@@ -285,11 +364,89 @@ function PrDetail() {
           <span className="dim">{prDetail.commits} commits</span>
           <span className="dim">by {prDetail.author}</span>
         </div>
-        <pre className="pr-body">{prDetail.body || 'No description.'}</pre>
-        <button className="btn ghost sm" onClick={() => window.bonsai.openExternal(prDetail.url)}>
-          Open on GitHub
-        </button>
+
+        <Checks checks={prDetail.checks} />
+
+        <div className="pr-card">
+          <div className="pr-card-author">{prDetail.author}</div>
+          {prDetail.body ? <Markdown>{prDetail.body}</Markdown> : <span className="dim">No description.</span>}
+        </div>
+
+        {prComments.length > 0 && (
+          <div className="pr-comments">
+            {prComments.map((c, i) => (
+              <div className="pr-card" key={i}>
+                <div className="pr-card-author">
+                  {c.author}
+                  {c.kind === 'review' && c.state && (
+                    <span className={`review-state ${c.state.toLowerCase()}`}>
+                      {c.state.replace('_', ' ').toLowerCase()}
+                    </span>
+                  )}
+                </div>
+                {c.body ? <Markdown>{c.body}</Markdown> : <span className="dim">(no comment)</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="pr-reply">
+          <textarea
+            className="pr-textarea"
+            rows={3}
+            placeholder="Add a comment…"
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+          />
+          <div className="pr-reply-actions">
+            <button className="btn ghost sm" onClick={() => window.bonsai.openExternal(prDetail.url)}>
+              <Icon name="external" size={13} /> GitHub
+            </button>
+            <button
+              className="btn primary sm"
+              disabled={!reply.trim() || prBusy}
+              onClick={async () => {
+                await addPrComment(prDetail.number, reply)
+                setReply('')
+              }}
+            >
+              Comment
+            </button>
+          </div>
+        </div>
       </div>
+    </div>
+  )
+}
+
+function AccountSwitcher() {
+  const { ghAccounts, switchGhAccount } = useApp()
+  const [open, setOpen] = useState(false)
+  if (ghAccounts.length === 0) return null
+  const active = ghAccounts.find((a) => a.active)
+  return (
+    <div className="acct">
+      <button className="acct-btn" onClick={() => setOpen((o) => !o)} title="Switch GitHub account">
+        @{active?.user ?? '?'}
+        <Icon name="chevron-down" size={12} />
+      </button>
+      {open && (
+        <div className="acct-menu" onMouseLeave={() => setOpen(false)}>
+          {ghAccounts.map((a) => (
+            <button
+              key={a.user}
+              className={a.active ? 'active' : ''}
+              onClick={() => {
+                setOpen(false)
+                if (!a.active) switchGhAccount(a.user)
+              }}
+            >
+              {a.active && <Icon name="check" size={12} />}
+              <span>@{a.user}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -303,13 +460,24 @@ function PrList() {
 
   if (prStatus && !prStatus.available) {
     return (
-      <div className="sc-empty">
-        <Icon name="commit" size={24} className="dim" />
-        <p>Pull requests unavailable</p>
-        <span className="dim">{prStatus.reason || 'Could not load pull requests.'}</span>
-        <button className="btn ghost sm" onClick={() => setCreating(true)} style={{ marginTop: 10 }}>
-          Try creating one
-        </button>
+      <div className="sc-list">
+        <div className="pr-toolbar">
+          <AccountSwitcher />
+          <button className="icon-btn" title="Refresh" onClick={loadPrs} style={{ marginLeft: 'auto' }}>
+            <Icon name="fetch" size={14} />
+          </button>
+        </div>
+        <div className="sc-empty">
+          <Icon name="commit" size={24} className="dim" />
+          <p>Pull requests unavailable</p>
+          <span className="dim">{prStatus.reason || 'Could not load pull requests.'}</span>
+          <span className="dim" style={{ marginTop: 6 }}>
+            Wrong account? Switch it above.
+          </span>
+          <button className="btn ghost sm" onClick={() => setCreating(true)} style={{ marginTop: 10 }}>
+            Try creating one
+          </button>
+        </div>
       </div>
     )
   }
@@ -321,7 +489,8 @@ function PrList() {
         <button className="btn primary sm" onClick={() => setCreating(true)}>
           <Icon name="plus" size={13} /> New PR
         </button>
-        <button className="icon-btn" title="Refresh" onClick={loadPrs}>
+        <AccountSwitcher />
+        <button className="icon-btn" title="Refresh" onClick={loadPrs} style={{ marginLeft: 'auto' }}>
           <Icon name="fetch" size={14} />
         </button>
       </div>
@@ -355,25 +524,48 @@ const SEGMENTS: { id: DrawerPanel; label: string; icon: Parameters<typeof Icon>[
   { id: 'changes', label: 'Changes', icon: 'diff' },
   { id: 'files', label: 'Files', icon: 'folder' },
   { id: 'prs', label: 'PRs', icon: 'commit' },
+  { id: 'log', label: 'Log', icon: 'history' },
 ]
 
 export function SourceControl() {
-  const { scOpen, toggleSourceControl, activeTab, statusByCwd, inspector, sync, syncing, panel, setPanel } =
-    useApp()
+  const {
+    scOpen,
+    toggleSourceControl,
+    activeTab,
+    statusByCwd,
+    inspector,
+    sync,
+    syncing,
+    panel,
+    setPanel,
+    config,
+    setDrawerWidth,
+  } = useApp()
   if (!scOpen) return null
   const tab = activeTab()
   const status = tab ? statusByCwd[tab.cwd] : undefined
+  const width = config?.drawerWidth ?? 380
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = width
+    const move = (ev: MouseEvent) => setDrawerWidth(startW + (startX - ev.clientX))
+    const up = () => {
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+    }
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+  }
 
   return (
-    <aside className="sc-drawer">
+    <aside className="sc-drawer" style={{ width }}>
+      <div className="sc-resizer" onMouseDown={startResize} title="Drag to resize" />
       <header className="sc-head">
         <div className="sc-segmented">
           {SEGMENTS.map((s) => (
-            <button
-              key={s.id}
-              className={panel === s.id ? 'active' : ''}
-              onClick={() => setPanel(s.id)}
-            >
+            <button key={s.id} className={panel === s.id ? 'active' : ''} onClick={() => setPanel(s.id)}>
               <Icon name={s.icon} size={13} /> {s.label}
             </button>
           ))}
@@ -416,6 +608,7 @@ export function SourceControl() {
           )}
           {panel === 'files' && <FilesPanel />}
           {panel === 'prs' && <PrPanel />}
+          {panel === 'log' && <LogPanel />}
         </>
       )}
     </aside>

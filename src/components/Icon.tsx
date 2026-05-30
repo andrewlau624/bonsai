@@ -25,6 +25,9 @@ import {
   Layers,
   Braces,
   FolderOpen,
+  History,
+  ExternalLink,
+  PanelLeft,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -59,6 +62,9 @@ const MAP = {
   layers: Layers,
   config: Braces,
   reveal: FolderOpen,
+  history: History,
+  external: ExternalLink,
+  panel: PanelLeft,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof MAP

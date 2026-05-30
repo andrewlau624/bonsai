@@ -13,6 +13,7 @@ import type {
   SavedCommand,
   PrStatus,
   PullRequestDetail,
+  PrComment,
 } from '../shared/types'
 
 const api: BonsaiApi = {
@@ -48,6 +49,7 @@ const api: BonsaiApi = {
       }>,
     listDir: (cwd, relPath) =>
       ipcRenderer.invoke('git:listDir', cwd, relPath) as Promise<DirEntry[]>,
+    log: (cwd) => ipcRenderer.invoke('git:log', cwd) as Promise<import('../shared/types').Commit[]>,
   },
   session: {
     create: (opts: SessionOptions) =>
@@ -84,9 +86,14 @@ const api: BonsaiApi = {
   pr: {
     list: (cwd) => ipcRenderer.invoke('pr:list', cwd) as Promise<PrStatus>,
     view: (cwd, num) => ipcRenderer.invoke('pr:view', cwd, num) as Promise<PullRequestDetail>,
+    comments: (cwd, num) => ipcRenderer.invoke('pr:comments', cwd, num) as Promise<PrComment[]>,
     create: (cwd, data) =>
       ipcRenderer.invoke('pr:create', cwd, data) as Promise<{ url: string }>,
     edit: (cwd, num, data) => ipcRenderer.invoke('pr:edit', cwd, num, data) as Promise<void>,
+    comment: (cwd, num, body) =>
+      ipcRenderer.invoke('pr:comment', cwd, num, body) as Promise<void>,
+    accounts: () => ipcRenderer.invoke('pr:accounts') as Promise<import('../shared/types').GhAccount[]>,
+    switchAccount: (user) => ipcRenderer.invoke('pr:switchAccount', user) as Promise<void>,
   },
   window: {
     openCode: (cwd, file) => ipcRenderer.invoke('window:openCode', cwd, file) as Promise<void>,
@@ -97,6 +104,10 @@ const api: BonsaiApi = {
     },
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) as Promise<void>,
+  app: {
+    reveal: (p) => ipcRenderer.invoke('app:reveal', p) as Promise<void>,
+    openInEditor: (p) => ipcRenderer.invoke('app:openInEditor', p) as Promise<boolean>,
+  },
   onOpenSettings: (cb) => {
     const listener = () => cb()
     ipcRenderer.on('menu:open-settings', listener)

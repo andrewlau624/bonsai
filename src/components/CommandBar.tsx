@@ -3,55 +3,44 @@ import { useApp } from '../store'
 import { Icon } from './Icon'
 import type { SavedCommand } from '../../shared/types'
 
-function Editor({
-  repoId,
-  list,
-  onClose,
-}: {
-  repoId: string
-  list: SavedCommand[]
-  onClose: () => void
-}) {
+function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[]; onClose: () => void }) {
   const { saveCommands } = useApp()
   const [items, setItems] = useState<SavedCommand[]>(list)
   const [name, setName] = useState('')
   const [body, setBody] = useState('')
+  const [action, setAction] = useState<'run' | 'paste'>('run')
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  const commit = () => {
-    const commands = body
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-    if (!name.trim() || commands.length === 0) return
-    let next: SavedCommand[]
-    if (editingId) {
-      next = items.map((it) => (it.id === editingId ? { ...it, name: name.trim(), commands } : it))
-    } else {
-      next = [...items, { id: `c${Date.now()}`, name: name.trim(), commands }]
-    }
-    setItems(next)
-    void saveCommands(repoId, next)
+  const reset = () => {
     setName('')
     setBody('')
+    setAction('run')
     setEditingId(null)
+  }
+
+  const commit = () => {
+    const commands = body.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => l.trim())
+    if (!name.trim() || commands.length === 0) return
+    const next = editingId
+      ? items.map((it) => (it.id === editingId ? { ...it, name: name.trim(), commands, action } : it))
+      : [...items, { id: `c${Date.now()}`, name: name.trim(), commands, action }]
+    setItems(next)
+    void saveCommands(repoId, next)
+    reset()
   }
 
   const remove = (id: string) => {
     const next = items.filter((it) => it.id !== id)
     setItems(next)
     void saveCommands(repoId, next)
-    if (editingId === id) {
-      setEditingId(null)
-      setName('')
-      setBody('')
-    }
+    if (editingId === id) reset()
   }
 
   const edit = (it: SavedCommand) => {
     setEditingId(it.id)
     setName(it.name)
     setBody(it.commands.join('\n'))
+    setAction(it.action)
   }
 
   return (
@@ -62,13 +51,15 @@ function Editor({
           <h3>Saved commands</h3>
         </header>
         <p className="modal-sub">
-          Bookmark a command or a sequence. Clicking it runs the lines in your active terminal.
+          Bookmark a command, a sequence, or a reusable prompt. <strong>Run</strong> executes it in
+          the active terminal; <strong>Paste</strong> drops it at the prompt to edit first.
         </p>
 
         <div className="cmd-list">
           {items.length === 0 && <div className="set-empty">No saved commands yet.</div>}
           {items.map((it) => (
             <div className="cmd-item" key={it.id}>
+              <span className={`cmd-tag ${it.action}`}>{it.action}</span>
               <div className="cmd-item-info">
                 <span className="cmd-item-name">{it.name}</span>
                 <span className="cmd-item-cmds ellipsis">{it.commands.join(' ; ')}</span>
@@ -93,17 +84,27 @@ function Editor({
           <textarea
             className="pr-textarea"
             rows={3}
-            placeholder={'One command per line, e.g.\nnpm install\nnpm run dev'}
+            placeholder={'One line per command, e.g.\nnpm install\nnpm run dev'}
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
-          <div className="modal-actions">
-            <button className="btn ghost" onClick={onClose}>
-              Done
-            </button>
-            <button className="btn primary" disabled={!name.trim() || !body.trim()} onClick={commit}>
-              {editingId ? 'Update' : 'Add'}
-            </button>
+          <div className="cmd-form-row">
+            <div className="segmented">
+              <button className={action === 'run' ? 'active' : ''} onClick={() => setAction('run')}>
+                Run
+              </button>
+              <button className={action === 'paste' ? 'active' : ''} onClick={() => setAction('paste')}>
+                Paste
+              </button>
+            </div>
+            <div className="modal-actions" style={{ flex: 1 }}>
+              <button className="btn ghost" onClick={onClose}>
+                Done
+              </button>
+              <button className="btn primary" disabled={!name.trim() || !body.trim()} onClick={commit}>
+                {editingId ? 'Update' : 'Add'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -112,7 +113,7 @@ function Editor({
 }
 
 export function CommandBar() {
-  const { activeTab, commandsByRepo, runCommands } = useApp()
+  const { activeTab, commandsByRepo, runSaved } = useApp()
   const [editing, setEditing] = useState(false)
   const tab = activeTab()
   if (!tab) return null
@@ -127,9 +128,10 @@ export function CommandBar() {
           <button
             key={c.id}
             className="cmd-chip"
-            title={c.commands.join('\n')}
-            onClick={() => runCommands(c.commands)}
+            title={`${c.action === 'paste' ? 'Paste' : 'Run'}: ${c.commands.join('\n')}`}
+            onClick={() => runSaved(c)}
           >
+            <Icon name={c.action === 'paste' ? 'config' : 'terminal'} size={11} />
             {c.commands.length > 1 && <span className="cmd-count">{c.commands.length}</span>}
             {c.name}
           </button>

@@ -1,5 +1,6 @@
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron'
 import path from 'node:path'
+import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import type {
   Repo,
@@ -96,6 +97,7 @@ export function registerIpc(): void {
   ipcMain.handle('git:listDir', (_e, cwd: string, relPath: string) =>
     gitOps.listDir(cwd, relPath),
   )
+  ipcMain.handle('git:log', (_e, cwd: string) => gitOps.log(cwd))
 
   // ---- Sessions (PTY) ----
   ipcMain.handle('session:create', (event, opts: SessionOptions) =>
@@ -128,6 +130,26 @@ export function registerIpc(): void {
   // ---- Code viewer window ----
   ipcMain.handle('window:openCode', (_e, cwd: string, file: string) => openCodeWindow(cwd, file))
   ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
+  ipcMain.handle('app:reveal', (_e, p: string) => shell.openPath(p))
+  ipcMain.handle('app:openInEditor', async (_e, p: string) => {
+    for (const ed of ['code', 'cursor', 'subl', 'zed', 'webstorm']) {
+      const ok = await new Promise<boolean>((resolve) => {
+        try {
+          const cp = spawn(ed, [p], { detached: true, stdio: 'ignore' })
+          cp.on('error', () => resolve(false))
+          cp.on('spawn', () => {
+            cp.unref()
+            resolve(true)
+          })
+        } catch {
+          resolve(false)
+        }
+      })
+      if (ok) return true
+    }
+    await shell.openPath(p)
+    return false
+  })
 
   // ---- Pull requests (gh) ----
   ipcMain.handle('pr:list', (_e, cwd: string) => github.prList(cwd))
@@ -140,4 +162,10 @@ export function registerIpc(): void {
   ipcMain.handle('pr:edit', (_e, cwd: string, num: number, data: { title: string; body: string }) =>
     github.prEdit(cwd, num, data),
   )
+  ipcMain.handle('pr:comments', (_e, cwd: string, num: number) => github.prComments(cwd, num))
+  ipcMain.handle('pr:comment', (_e, cwd: string, num: number, body: string) =>
+    github.prComment(cwd, num, body),
+  )
+  ipcMain.handle('pr:accounts', () => github.ghAccounts())
+  ipcMain.handle('pr:switchAccount', (_e, user: string) => github.ghSwitch(user))
 }

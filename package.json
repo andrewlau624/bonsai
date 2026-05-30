@@ -16,8 +16,11 @@
   },
   "dependencies": {
     "electron-store": "^8.2.0",
+    "highlight.js": "^11.11.1",
     "lucide-react": "^1.17.0",
     "node-pty": "^1.0.0",
+    "react-markdown": "^9.1.0",
+    "remark-gfm": "^4.0.1",
     "simple-git": "^3.24.0"
   },
   "devDependencies": {

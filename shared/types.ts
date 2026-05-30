@@ -64,6 +64,14 @@ export interface DirEntry {
   path: string
 }
 
+export interface Commit {
+  hash: string
+  shortHash: string
+  subject: string
+  author: string
+  relative: string
+}
+
 /** A persisted terminal tab. */
 export interface TabState {
   id: string
@@ -76,8 +84,10 @@ export interface TabState {
 export interface SavedCommand {
   id: string
   name: string
-  /** One or more shell commands run in sequence in the active terminal. */
+  /** One or more shell commands / text lines for the active terminal. */
   commands: string[]
+  /** 'run' executes (sends a newline); 'paste' drops the text at the prompt to edit/reuse. */
+  action: 'run' | 'paste'
 }
 
 export interface PullRequest {
@@ -90,17 +100,41 @@ export interface PullRequest {
   author: string
 }
 
+export interface PrCheck {
+  name: string
+  /** Normalized status: pass | fail | pending | skip | cancel. */
+  bucket: 'pass' | 'fail' | 'pending' | 'skip' | 'cancel'
+  link: string
+  workflow?: string
+}
+
+export interface PrComment {
+  author: string
+  body: string
+  createdAt: string
+  /** A conversation comment or a review summary. */
+  kind: 'comment' | 'review'
+  /** Review state (APPROVED, CHANGES_REQUESTED, COMMENTED) when kind === 'review'. */
+  state?: string
+}
+
 export interface PullRequestDetail extends PullRequest {
   body: string
   baseRefName: string
   additions: number
   deletions: number
   commits: number
+  checks: PrCheck[]
 }
 
 export type PrStatus =
   | { available: false; reason: string }
   | { available: true; prs: PullRequest[] }
+
+export interface GhAccount {
+  user: string
+  active: boolean
+}
 
 export interface Profile {
   id: string
@@ -130,6 +164,11 @@ export interface AppConfig {
   cursorStyle: CursorStyle
   /** Whether UI transitions/animations play. */
   animations: boolean
+  /** Accent color override id, or 'theme' to use the theme's own accent. */
+  accent: string
+  /** Layout preferences. */
+  sidebarCollapsed: boolean
+  drawerWidth: number
   /** Overrides for the mode toggles defined in the renderer (key -> on/off). */
   modes: Record<string, boolean>
   profiles: Profile[]
@@ -167,6 +206,7 @@ export interface BonsaiApi {
     diffFile(cwd: string, file: string, staged: boolean): Promise<string>
     readFile(cwd: string, relPath: string): Promise<{ content: string; truncated: boolean }>
     listDir(cwd: string, relPath: string): Promise<DirEntry[]>
+    log(cwd: string): Promise<Commit[]>
   }
   session: {
     create(opts: SessionOptions): Promise<string>
@@ -193,11 +233,15 @@ export interface BonsaiApi {
   pr: {
     list(cwd: string): Promise<PrStatus>
     view(cwd: string, num: number): Promise<PullRequestDetail>
+    comments(cwd: string, num: number): Promise<PrComment[]>
     create(
       cwd: string,
       data: { title: string; body: string; base?: string; draft?: boolean },
     ): Promise<{ url: string }>
     edit(cwd: string, num: number, data: { title: string; body: string }): Promise<void>
+    comment(cwd: string, num: number, body: string): Promise<void>
+    accounts(): Promise<GhAccount[]>
+    switchAccount(user: string): Promise<void>
   }
   window: {
     /** Open the standalone code viewer window for a worktree (optionally at a file). */
@@ -206,5 +250,11 @@ export interface BonsaiApi {
     onNavigate(cb: (file: string) => void): () => void
   }
   openExternal(url: string): Promise<void>
+  app: {
+    /** Open a folder/file in the OS file manager. */
+    reveal(path: string): Promise<void>
+    /** Open a path in the user's editor (VS Code if available). Resolves to true on success. */
+    openInEditor(path: string): Promise<boolean>
+  }
   onOpenSettings(cb: () => void): () => void
 }

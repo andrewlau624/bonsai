@@ -366,11 +366,32 @@ const CORNERS: Record<string, { r: string; sm: string }> = {
   round: { r: '16px', sm: '11px' },
 }
 
+export interface AccentDef {
+  id: string
+  name: string
+  accent: string
+  press: string
+  ink: string
+}
+
+export const ACCENTS: AccentDef[] = [
+  { id: 'theme', name: 'Theme', accent: '', press: '', ink: '' },
+  { id: 'green', name: 'Green', accent: '#45b884', press: '#3aa073', ink: '#04130c' },
+  { id: 'blue', name: 'Blue', accent: '#4aa8ff', press: '#3a92e6', ink: '#021223' },
+  { id: 'purple', name: 'Purple', accent: '#b08cff', press: '#9a72f0', ink: '#160a2e' },
+  { id: 'pink', name: 'Pink', accent: '#ff5fb0', press: '#ec4a9d', ink: '#2a0418' },
+  { id: 'orange', name: 'Orange', accent: '#ff8c42', press: '#f0762a', ink: '#240f02' },
+  { id: 'red', name: 'Red', accent: '#f0626b', press: '#dd4d56', ink: '#250507' },
+  { id: 'teal', name: 'Teal', accent: '#2dd4bf', press: '#22b8a5', ink: '#022420' },
+  { id: 'amber', name: 'Amber', accent: '#e8b339', press: '#d49f28', ink: '#241a04' },
+]
+
 export interface StyleOptions {
   density: 'comfortable' | 'compact'
   uiFont: keyof typeof UI_FONTS
   corners: keyof typeof CORNERS
   animations: boolean
+  accent: string
 }
 
 /** Apply a theme plus the user's structural style choices to the document root. */
@@ -387,6 +408,14 @@ export function applyTheme(id: string, opts: StyleOptions): void {
   if (corner.r) {
     root.style.setProperty('--radius', corner.r)
     root.style.setProperty('--radius-sm', corner.sm)
+  }
+
+  // Accent override ('theme' keeps the theme's own accent).
+  const accent = ACCENTS.find((a) => a.id === opts.accent)
+  if (accent && accent.id !== 'theme') {
+    root.style.setProperty('--accent', accent.accent)
+    root.style.setProperty('--accent-press', accent.press)
+    root.style.setProperty('--accent-ink', accent.ink)
   }
 
   root.dataset.theme = theme.id

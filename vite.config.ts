@@ -7,6 +7,17 @@ import electron from 'vite-plugin-electron/simple'
 // - electron/preload.ts -> contextBridge IPC surface             -> dist-electron/preload.mjs
 // - src/                -> renderer (React + xterm.js)
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep heavy, rarely-changing vendors in their own cacheable chunks.
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     electron({

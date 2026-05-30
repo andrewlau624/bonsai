@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../store'
 import { Icon } from './Icon'
-import { THEMES } from '../themes'
+import { THEMES, ACCENTS } from '../themes'
 import { MODE_DEFS, modeValue } from '../modes'
 
 type Tab = 'appearance' | 'behavior' | 'profiles' | 'config'
@@ -55,18 +55,34 @@ function Appearance() {
             onClick={() => updateConfig({ theme: t.id })}
           >
             <div className="theme-preview" style={{ background: t.swatch[0] }}>
+              <span className="theme-bar" style={{ background: t.swatch[1] }} />
               <span className="sw" style={{ background: t.swatch[1] }} />
               <span className="sw" style={{ background: t.swatch[2] }} />
-              <span className="sw ghost" style={{ borderColor: t.swatch[1] }} />
+              {config.theme === t.id && (
+                <span className="theme-check">
+                  <Icon name="check" size={12} />
+                </span>
+              )}
             </div>
             <div className="theme-meta">
               <span className="theme-name">{t.name}</span>
-              {config.theme === t.id ? (
-                <Icon name="check" size={13} className="theme-check" />
-              ) : (
-                <span className="theme-group">{t.group}</span>
-              )}
+              <span className="theme-group">{t.group}</span>
             </div>
+          </button>
+        ))}
+      </div>
+
+      <h4 className="set-h">Accent</h4>
+      <div className="accent-row">
+        {ACCENTS.map((a) => (
+          <button
+            key={a.id}
+            className={`accent-dot ${config.accent === a.id ? 'active' : ''} ${a.id === 'theme' ? 'theme-accent' : ''}`}
+            title={a.name}
+            style={a.id === 'theme' ? undefined : { background: a.accent }}
+            onClick={() => updateConfig({ accent: a.id })}
+          >
+            {a.id === 'theme' ? 'A' : config.accent === a.id ? <Icon name="check" size={13} /> : null}
           </button>
         ))}
       </div>

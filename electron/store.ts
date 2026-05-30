@@ -18,6 +18,9 @@ const DEFAULT_CONFIG: AppConfig = {
   corners: 'soft',
   cursorStyle: 'bar',
   animations: true,
+  accent: 'theme',
+  sidebarCollapsed: false,
+  drawerWidth: 380,
   modes: {},
   profiles: [],
 }

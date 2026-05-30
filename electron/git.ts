@@ -2,7 +2,7 @@ import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs'
 import { simpleGit, SimpleGit } from 'simple-git'
-import type { Branch, Worktree, GitStatus, FileChange, DirEntry } from '../shared/types'
+import type { Branch, Worktree, GitStatus, FileChange, DirEntry, Commit } from '../shared/types'
 import { carryEnvFiles } from './env-vault'
 
 // Worktrees are stored centrally so they don't clutter the repo's parent dir:
@@ -271,6 +271,20 @@ export function readFile(cwd: string, relPath: string): { content: string; trunc
     return { content: buf.toString('utf8'), truncated: true }
   }
   return { content: fs.readFileSync(abs, 'utf8'), truncated: false }
+}
+
+export async function log(cwd: string): Promise<Commit[]> {
+  // Use a unit separator so subjects with any punctuation parse cleanly.
+  const fmt = '%H%x1f%h%x1f%s%x1f%an%x1f%cr'
+  const out = await git(cwd).raw(['log', '-n', '50', `--pretty=format:${fmt}`])
+  if (!out.trim()) return []
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, shortHash, subject, author, relative] = line.split('\x1f')
+      return { hash, shortHash, subject, author, relative }
+    })
 }
 
 export function listDir(cwd: string, relPath: string): DirEntry[] {

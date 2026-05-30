@@ -11,6 +11,9 @@ import type {
   SavedCommand,
   PrStatus,
   PullRequestDetail,
+  PrComment,
+  Commit,
+  GhAccount,
 } from '../shared/types'
 import { applyTheme } from './themes'
 import { modeValue } from './modes'
@@ -24,7 +27,7 @@ type InspectorView =
   | { kind: 'list' }
   | { kind: 'diff'; file: string; staged: boolean; diff: string }
 
-export type DrawerPanel = 'changes' | 'files' | 'prs'
+export type DrawerPanel = 'changes' | 'files' | 'prs' | 'log'
 
 type Modal =
   | { type: 'newBranch'; repoId: string }
@@ -37,6 +40,7 @@ function applyConfig(c: AppConfig) {
     uiFont: c.uiFont,
     corners: c.corners,
     animations: c.animations,
+    accent: c.accent,
   })
 }
 
@@ -65,7 +69,11 @@ interface AppState {
 
   prStatus: PrStatus | null
   prDetail: PullRequestDetail | null
+  prComments: PrComment[]
   prBusy: boolean
+  ghAccounts: GhAccount[]
+
+  commitsLog: Commit[]
 
   searchOpen: boolean
   branchFilter: string
@@ -73,6 +81,7 @@ interface AppState {
 
   config: AppConfig | null
   settingsOpen: boolean
+  paletteOpen: boolean
 
   init: () => Promise<void>
   addRepo: () => Promise<void>
@@ -102,7 +111,7 @@ interface AppState {
 
   registerSession: (tabId: string, sessionId: string) => void
   unregisterSession: (tabId: string) => void
-  runCommands: (commands: string[]) => void
+  runSaved: (cmd: SavedCommand) => void
   loadCommands: (repoId: string) => Promise<void>
   saveCommands: (repoId: string, list: SavedCommand[]) => Promise<void>
 
@@ -110,7 +119,20 @@ interface AppState {
   viewPr: (num: number) => Promise<void>
   createPr: (data: { title: string; body: string; draft?: boolean }) => Promise<string | null>
   editPr: (num: number, data: { title: string; body: string }) => Promise<void>
+  addPrComment: (num: number, body: string) => Promise<void>
   closePrDetail: () => void
+  loadGhAccounts: () => Promise<void>
+  switchGhAccount: (user: string) => Promise<void>
+
+  loadLog: () => Promise<void>
+
+  openPalette: () => void
+  closePalette: () => void
+  toggleSidebar: () => void
+  setDrawerWidth: (w: number) => void
+  revealActive: () => void
+  openActiveInEditor: () => void
+  newTabOnActive: () => void
 
   setSearchOpen: (v: boolean) => void
   setBranchFilter: (v: string) => void
@@ -154,7 +176,11 @@ export const useApp = create<AppState>((set, get) => ({
 
   prStatus: null,
   prDetail: null,
+  prComments: [],
   prBusy: false,
+  ghAccounts: [],
+
+  commitsLog: [],
 
   searchOpen: false,
   branchFilter: '',
@@ -162,6 +188,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   config: null,
   settingsOpen: false,
+  paletteOpen: false,
 
   init: async () => {
     const config = await window.bonsai.config.get()
@@ -318,17 +345,15 @@ export const useApp = create<AppState>((set, get) => ({
   toggleSourceControl: () => {
     const next = !get().scOpen
     set({ scOpen: next, inspector: { kind: 'list' } })
-    if (next) {
-      void get().refreshStatus()
-      if (get().panel === 'prs') void get().loadPrs()
-      if (get().panel === 'files') void get().browseFiles('')
-    }
+    if (next) get().setPanel(get().panel)
   },
 
   setPanel: (p) => {
     set({ panel: p, inspector: { kind: 'list' } })
+    if (p === 'changes') void get().refreshStatus()
     if (p === 'prs') void get().loadPrs()
     if (p === 'files') void get().browseFiles('')
+    if (p === 'log') void get().loadLog()
   },
 
   refreshStatus: async () => {
@@ -441,13 +466,18 @@ export const useApp = create<AppState>((set, get) => ({
       return { sessionByTab: next }
     }),
 
-  runCommands: (commands) => {
+  runSaved: (cmd) => {
     const { activeTabId, sessionByTab } = get()
     if (!activeTabId) return
     const sid = sessionByTab[activeTabId]
     if (!sid) return
-    for (const cmd of commands) {
-      if (cmd.trim()) window.bonsai.session.write(sid, cmd + '\n')
+    if (cmd.action === 'paste') {
+      // Drop the text at the prompt (no trailing newline) so it can be edited.
+      window.bonsai.session.write(sid, cmd.commands.join('\n'))
+    } else {
+      for (const line of cmd.commands) {
+        if (line.trim()) window.bonsai.session.write(sid, line + '\n')
+      }
     }
   },
 
@@ -474,15 +504,40 @@ export const useApp = create<AppState>((set, get) => ({
     } finally {
       set({ prBusy: false })
     }
+    void get().loadGhAccounts()
+  },
+
+  loadGhAccounts: async () => {
+    try {
+      const ghAccounts = await window.bonsai.pr.accounts()
+      set({ ghAccounts })
+    } catch {
+      /* gh missing */
+    }
+  },
+
+  switchGhAccount: async (user) => {
+    try {
+      await window.bonsai.pr.switchAccount(user)
+      await get().loadGhAccounts()
+      await get().loadPrs()
+    } catch (err) {
+      alert(`Could not switch account:\n${(err as Error).message}`)
+    }
   },
 
   viewPr: async (num) => {
     const tab = get().activeTab()
     if (!tab) return
-    set({ prBusy: true })
+    set({ prBusy: true, prComments: [] })
     try {
       const prDetail = await window.bonsai.pr.view(tab.cwd, num)
       set({ prDetail })
+      // Comments load in the background; detail shows immediately.
+      void window.bonsai.pr
+        .comments(tab.cwd, num)
+        .then((prComments) => set({ prComments }))
+        .catch(() => {})
     } catch (err) {
       alert(`Could not load PR #${num}:\n${(err as Error).message}`)
     } finally {
@@ -521,7 +576,62 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
-  closePrDetail: () => set({ prDetail: null }),
+  addPrComment: async (num, body) => {
+    const tab = get().activeTab()
+    if (!tab || !body.trim()) return
+    set({ prBusy: true })
+    try {
+      await window.bonsai.pr.comment(tab.cwd, num, body)
+      const prComments = await window.bonsai.pr.comments(tab.cwd, num)
+      set({ prComments })
+    } catch (err) {
+      alert(`Could not post comment:\n${(err as Error).message}`)
+    } finally {
+      set({ prBusy: false })
+    }
+  },
+
+  closePrDetail: () => set({ prDetail: null, prComments: [] }),
+
+  loadLog: async () => {
+    const tab = get().activeTab()
+    if (!tab) return
+    try {
+      const commitsLog = await window.bonsai.git.log(tab.cwd)
+      set({ commitsLog })
+    } catch (err) {
+      console.error('log failed', err)
+    }
+  },
+
+  openPalette: () => set({ paletteOpen: true }),
+  closePalette: () => set({ paletteOpen: false }),
+
+  toggleSidebar: () => {
+    const c = get().config
+    if (c) void get().updateConfig({ sidebarCollapsed: !c.sidebarCollapsed })
+  },
+
+  setDrawerWidth: (w) => {
+    const width = Math.max(280, Math.min(720, Math.round(w)))
+    const c = get().config
+    if (c) void get().updateConfig({ drawerWidth: width })
+  },
+
+  revealActive: () => {
+    const tab = get().activeTab()
+    if (tab) void window.bonsai.app.reveal(tab.cwd)
+  },
+
+  openActiveInEditor: () => {
+    const tab = get().activeTab()
+    if (tab) void window.bonsai.app.openInEditor(tab.cwd)
+  },
+
+  newTabOnActive: () => {
+    const tab = get().activeTab()
+    if (tab) void get().openBranch(tab.repoId, tab.branch, true)
+  },
 
   // ---- Branch search + management ----
   setSearchOpen: (v) => set({ searchOpen: v, branchFilter: v ? get().branchFilter : '' }),

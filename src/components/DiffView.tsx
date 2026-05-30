@@ -1,5 +1,7 @@
+import { memo } from 'react'
+
 interface Row {
-  type: 'add' | 'del' | 'ctx' | 'hunk' | 'meta'
+  type: 'add' | 'del' | 'ctx' | 'hunk'
   oldNo: number | null
   newNo: number | null
   text: string
@@ -38,17 +40,16 @@ function parseDiff(diff: string): Row[] {
     } else if (line.startsWith('-')) {
       rows.push({ type: 'del', oldNo: oldNo++, newNo: null, text: line.slice(1) })
     } else {
-      rows.push({ type: 'ctx', oldNo: oldNo++, newNo: newNo++, text: line.slice(1) || line })
+      rows.push({ type: 'ctx', oldNo: oldNo++, newNo: newNo++, text: line.slice(1) })
     }
   }
-  // Trim a trailing empty context row produced by the final newline.
   if (rows.length && rows[rows.length - 1].text === '' && rows[rows.length - 1].type === 'ctx') {
     rows.pop()
   }
   return rows
 }
 
-export function DiffView({ diff }: { diff: string }) {
+export const DiffView = memo(function DiffView({ diff }: { diff: string }) {
   const rows = parseDiff(diff)
   if (rows.length === 0) return <div className="diff-empty">No textual changes.</div>
 
@@ -58,10 +59,10 @@ export function DiffView({ diff }: { diff: string }) {
         <div key={i} className={`diff-row ${r.type}`}>
           <span className="ln old">{r.oldNo ?? ''}</span>
           <span className="ln new">{r.newNo ?? ''}</span>
-          <span className="sign">{r.type === 'add' ? '+' : r.type === 'del' ? '-' : ''}</span>
-          <span className="code">{r.text || ' '}</span>
+          <span className="sign">{r.type === 'add' ? '+' : r.type === 'del' ? '−' : ' '}</span>
+          <span className="code">{r.text === '' ? ' ' : r.text}</span>
         </div>
       ))}
     </div>
   )
-}
+})
