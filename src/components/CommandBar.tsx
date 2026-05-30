@@ -174,36 +174,27 @@ export function CommandBar() {
   return (
     <div className="command-bar">
       <div className="cmd-chips">
+        {/* Left: bookmarks + frequently-used quick chips */}
         {frequent.length > 0 && (
-          <div className="cmd-group">
-            <span className="cmd-group-head frequent" title="Frequently used">
-              <Icon name="star" size={11} /> Frequent
+          <span className="cmd-group-head frequent" title="Frequently used">
+            <Icon name="star" size={11} /> Frequent
+          </span>
+        )}
+        {frequent.map((cmd, i) => (
+          <span key={`f${i}`} className="cmd-chip task-chip" title={cmd} onClick={() => runCommandText(cmd)}>
+            <span className="ellipsis">{cmd}</span>
+            <span
+              className="task-bm"
+              title="Bookmark"
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleBookmark(cmd, cmd)
+              }}
+            >
+              <Icon name="star" size={11} />
             </span>
-            {frequent.map((cmd, i) => (
-              <span key={i} className="cmd-chip task-chip" title={cmd} onClick={() => runCommandText(cmd)}>
-                <span className="ellipsis">{cmd}</span>
-                <span
-                  className="task-bm"
-                  title="Bookmark"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleBookmark(cmd, cmd)
-                  }}
-                >
-                  <Icon name="star" size={11} />
-                </span>
-              </span>
-            ))}
-            <span className="cmd-divider" />
-          </div>
-        )}
-        {groups.map((g) => (
-          <TaskGroup key={g.source} group={g} />
+          </span>
         ))}
-        {groups.length > 0 && list.length > 0 && <span className="cmd-divider" />}
-        {groups.length === 0 && list.length === 0 && (
-          <span className="cmd-empty">No tasks or saved commands yet</span>
-        )}
         {list.map((c) => (
           <button
             key={c.id}
@@ -216,6 +207,18 @@ export function CommandBar() {
             {c.name}
           </button>
         ))}
+
+        {/* Divider, then the task folders on the right */}
+        {(frequent.length > 0 || list.length > 0) && groups.length > 0 && (
+          <span className="cmd-divider" />
+        )}
+        {groups.map((g) => (
+          <TaskGroup key={g.source} group={g} />
+        ))}
+
+        {groups.length === 0 && list.length === 0 && frequent.length === 0 && (
+          <span className="cmd-empty">No tasks or saved commands yet</span>
+        )}
       </div>
       <button className="icon-btn" title="Manage saved commands" onClick={() => setEditing(true)}>
         <Icon name="plus" size={15} />
