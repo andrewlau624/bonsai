@@ -20,6 +20,12 @@ import { modeValue } from './modes'
 
 let tabCounter = 0
 const nextTabId = () => `t${Date.now()}-${++tabCounter}`
+let previewCounter = 0
+
+export interface PreviewTab {
+  id: string
+  url: string
+}
 
 const branchKey = (repoId: string, branch: string) => `${repoId}::${branch}`
 
@@ -88,10 +94,9 @@ interface AppState {
   settingsOpen: boolean
   paletteOpen: boolean
 
-  previewOpen: boolean
-  previewUrl: string
+  previewTabs: PreviewTab[]
+  activePane: string // 'terminal' or a preview tab id
   previewDetected: boolean
-  paneView: 'terminal' | 'preview'
 
   init: () => Promise<void>
   addRepo: () => Promise<void>
@@ -146,9 +151,11 @@ interface AppState {
   openPalette: () => void
   closePalette: () => void
   togglePreview: () => void
-  setPaneView: (v: 'terminal' | 'preview') => void
-  setPreviewUrl: (url: string) => void
-  openPreviewWindow: () => void
+  setPaneActive: (id: string) => void
+  addPreviewTab: (url?: string) => void
+  closePreviewTab: (id: string) => void
+  setPreviewTabUrl: (id: string, url: string) => void
+  openPreviewWindow: (id: string) => void
   detectPreviewUrl: (url: string) => void
   isWebApp: () => boolean
   toggleSidebar: () => void
@@ -215,10 +222,9 @@ export const useApp = create<AppState>((set, get) => ({
   settingsOpen: false,
   paletteOpen: false,
 
-  previewOpen: false,
-  previewUrl: 'http://localhost:3000',
+  previewTabs: [],
+  activePane: 'terminal',
   previewDetected: false,
-  paneView: 'terminal',
 
   init: async () => {
     const config = await window.bonsai.config.get()
@@ -691,22 +697,63 @@ export const useApp = create<AppState>((set, get) => ({
   closePalette: () => set({ paletteOpen: false }),
 
   togglePreview: () => {
-    const next = !get().previewOpen
-    set({ previewOpen: next, paneView: next ? 'preview' : 'terminal' })
+    const { previewTabs, activePane } = get()
+    if (activePane !== 'terminal') set({ activePane: 'terminal' })
+    else if (previewTabs.length) set({ activePane: previewTabs[0].id })
+    else get().addPreviewTab()
   },
-  setPaneView: (v) => set({ paneView: v }),
-  setPreviewUrl: (url) => set({ previewUrl: url }),
-  openPreviewWindow: () => void window.bonsai.window.openBrowser(get().previewUrl),
+  setPaneActive: (id) => set({ activePane: id }),
 
-  // Picks up a dev-server URL printed in the terminal (Vite/Next/CRA/etc.) and
-  // auto-opens the Preview tab the first time one appears.
+  addPreviewTab: (url = 'http://localhost:3000') => {
+    const id = `pv${++previewCounter}`
+    set((s) => ({
+      previewTabs: [...s.previewTabs, { id, url }],
+      activePane: id,
+      previewDetected: true,
+    }))
+  },
+
+  closePreviewTab: (id) =>
+    set((s) => {
+      const previewTabs = s.previewTabs.filter((t) => t.id !== id)
+      const activePane =
+        s.activePane === id ? (previewTabs[previewTabs.length - 1]?.id ?? 'terminal') : s.activePane
+      return { previewTabs, activePane }
+    }),
+
+  setPreviewTabUrl: (id, url) =>
+    set((s) => ({ previewTabs: s.previewTabs.map((t) => (t.id === id ? { ...t, url } : t)) })),
+
+  openPreviewWindow: (id) => {
+    const t = get().previewTabs.find((x) => x.id === id)
+    if (t) void window.bonsai.window.openBrowser(t.url)
+  },
+
+  // Picks up dev-server URLs printed in the terminal (Vite/Next/Supabase/etc.).
+  // One preview tab per distinct host:port; the first one auto-opens.
   detectPreviewUrl: (url) => {
     const clean = url.replace(/[)\].,'"]+$/, '')
-    if (get().previewDetected) {
-      if (get().previewUrl !== clean) set({ previewUrl: clean })
+    let origin: string
+    try {
+      origin = new URL(clean).origin
+    } catch {
       return
     }
-    set({ previewUrl: clean, previewDetected: true, previewOpen: true, paneView: 'preview' })
+    const exists = get().previewTabs.some((t) => {
+      try {
+        return new URL(t.url).origin === origin
+      } catch {
+        return false
+      }
+    })
+    if (exists) return
+    const id = `pv${++previewCounter}`
+    const firstEver = !get().previewDetected
+    set((s) => ({
+      previewTabs: [...s.previewTabs, { id, url: clean }],
+      previewDetected: true,
+      activePane: firstEver ? id : s.activePane,
+    }))
   },
 
   // A repo is a "web app" if it has a dev/start/serve/preview script, OR if a

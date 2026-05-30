@@ -8,8 +8,9 @@ import { getTheme } from '../themes'
 
 const FONT_FAMILY = 'Menlo, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace'
 
-// Matches a local dev-server URL printed by Vite/Next/CRA/etc.
-const LOCAL_URL_RE = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+[^\s)'"]*/i
+// Matches local dev-server URLs printed by Vite/Next/Supabase/etc. (global, so
+// a single chunk listing several ports yields a tab per port).
+const LOCAL_URL_RE = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+[^\s)'"]*/gi
 
 /**
  * One xterm.js instance bound to one PTY session for the lifetime of a tab.
@@ -72,8 +73,8 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
       offData = window.bonsai.session.onData((sid, data) => {
         if (sid !== id) return
         term.write(data)
-        const m = LOCAL_URL_RE.exec(data)
-        if (m) useApp.getState().detectPreviewUrl(m[0])
+        const matches = data.match(LOCAL_URL_RE)
+        if (matches) for (const url of matches) useApp.getState().detectPreviewUrl(url)
       })
       offExit = window.bonsai.session.onExit((sid) => {
         if (sid === id) term.writeln('\r\n\x1b[90m[process exited]\x1b[0m')

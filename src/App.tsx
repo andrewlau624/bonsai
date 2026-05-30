@@ -11,6 +11,27 @@ import { CommandPalette } from './components/CommandPalette'
 import { Preview } from './components/Preview'
 import { Icon } from './components/Icon'
 
+// Friendly names for well-known local dev ports.
+const PORT_NAMES: Record<string, string> = {
+  '54323': 'Supabase Studio',
+  '54321': 'Supabase API',
+  '54324': 'Inbucket',
+  '5432': 'Postgres',
+  '6006': 'Storybook',
+  '8025': 'Mailpit',
+  '5173': 'Vite',
+  '3000': 'App',
+  '8080': 'Web',
+}
+function previewLabel(url: string): string {
+  try {
+    const u = new URL(url)
+    return PORT_NAMES[u.port] ?? (u.port ? `:${u.port}` : u.hostname)
+  } catch {
+    return 'Preview'
+  }
+}
+
 export default function App() {
   const {
     tabs,
@@ -30,10 +51,11 @@ export default function App() {
     revealActive,
     openActiveInEditor,
     isWebApp,
-    previewOpen,
     togglePreview,
-    paneView,
-    setPaneView,
+    previewTabs,
+    activePane,
+    setPaneActive,
+    closePreviewTab,
   } = useApp()
 
   useEffect(() => {
@@ -107,7 +129,7 @@ export default function App() {
               </button>
               {isWebApp() && (
                 <button
-                  className={`icon-btn ${previewOpen ? 'on' : ''}`}
+                  className={`icon-btn ${activePane !== 'terminal' ? 'on' : ''}`}
                   title="Localhost preview"
                   onClick={togglePreview}
                 >
@@ -133,27 +155,40 @@ export default function App() {
 
         <div className="body">
           <div className="terminals">
-            {previewOpen && (
+            {previewTabs.length > 0 && (
               <div className="pane-tabs">
                 <button
-                  className={paneView === 'terminal' ? 'active' : ''}
-                  onClick={() => setPaneView('terminal')}
+                  className={activePane === 'terminal' ? 'active' : ''}
+                  onClick={() => setPaneActive('terminal')}
                 >
                   <Icon name="terminal" size={13} /> Terminal
                 </button>
-                <button
-                  className={paneView === 'preview' ? 'active' : ''}
-                  onClick={() => setPaneView('preview')}
-                >
-                  <Icon name="globe" size={13} /> Preview
-                  <span className="pane-tab-close" title="Close preview" onClick={(e) => { e.stopPropagation(); togglePreview() }}>
-                    <Icon name="close" size={11} />
-                  </span>
-                </button>
+                {previewTabs.map((pt) => (
+                  <button
+                    key={pt.id}
+                    className={activePane === pt.id ? 'active' : ''}
+                    onClick={() => setPaneActive(pt.id)}
+                  >
+                    <Icon name="globe" size={13} /> {previewLabel(pt.url)}
+                    <span
+                      className="pane-tab-close"
+                      title="Close preview"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        closePreviewTab(pt.id)
+                      }}
+                    >
+                      <Icon name="close" size={11} />
+                    </span>
+                  </button>
+                ))}
               </div>
             )}
             <div className="pane-content">
-              <div className="pane-terminals" style={{ display: paneView === 'preview' ? 'none' : 'block' }}>
+              <div
+                className="pane-terminals"
+                style={{ display: activePane === 'terminal' ? 'block' : 'none' }}
+              >
                 {tabs.length === 0 && (
                   <div className="placeholder">
                     <Icon name="leaf" size={40} className="placeholder-mark" />
@@ -166,14 +201,22 @@ export default function App() {
                   </div>
                 )}
                 {tabs.map((t) => (
-                  <TerminalView key={t.id} tab={t} active={t.id === activeTabId && paneView === 'terminal'} />
+                  <TerminalView
+                    key={t.id}
+                    tab={t}
+                    active={t.id === activeTabId && activePane === 'terminal'}
+                  />
                 ))}
               </div>
-              {previewOpen && (
-                <div className="pane-preview" style={{ display: paneView === 'preview' ? 'block' : 'none' }}>
-                  <Preview />
+              {previewTabs.map((pt) => (
+                <div
+                  key={pt.id}
+                  className="pane-preview"
+                  style={{ display: activePane === pt.id ? 'block' : 'none' }}
+                >
+                  <Preview id={pt.id} url={pt.url} />
                 </div>
-              )}
+              ))}
             </div>
           </div>
           <SourceControl />

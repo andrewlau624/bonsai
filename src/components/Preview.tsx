@@ -2,18 +2,17 @@ import { useRef, useState } from 'react'
 import { useApp } from '../store'
 import { Icon } from './Icon'
 
-// Embedded localhost preview for web apps. Uses an Electron <webview> so dev
-// servers that block iframing still load. Mounted whenever the Preview tab
-// exists; visibility is controlled by the parent (so it keeps its page state
-// when you switch back to the terminal).
-export function Preview() {
-  const { previewUrl, setPreviewUrl, openPreviewWindow } = useApp()
-  const [draft, setDraft] = useState(previewUrl)
+// One embedded localhost preview (a single port/URL). Uses an Electron
+// <webview> so dev servers that block iframing still load. Kept mounted so it
+// preserves its page when you switch tabs.
+export function Preview({ id, url }: { id: string; url: string }) {
+  const { setPreviewTabUrl, openPreviewWindow } = useApp()
+  const [draft, setDraft] = useState(url)
   const viewRef = useRef<HTMLElement & { reload: () => void; src: string }>(null)
 
-  const go = (url: string) => {
-    const u = url.match(/^https?:\/\//) ? url : `http://${url}`
-    setPreviewUrl(u)
+  const go = (next: string) => {
+    const u = next.match(/^https?:\/\//) ? next : `http://${next}`
+    setPreviewTabUrl(id, u)
     setDraft(u)
     if (viewRef.current) viewRef.current.src = u
   }
@@ -31,11 +30,11 @@ export function Preview() {
           onKeyDown={(e) => e.key === 'Enter' && go(draft)}
           spellCheck={false}
         />
-        <button className="icon-btn" title="Open in separate window" onClick={openPreviewWindow}>
+        <button className="icon-btn" title="Open in separate window" onClick={() => openPreviewWindow(id)}>
           <Icon name="external" size={14} />
         </button>
       </div>
-      <webview ref={viewRef as never} className="preview-web" src={previewUrl} />
+      <webview ref={viewRef as never} className="preview-web" src={url} />
     </div>
   )
 }
