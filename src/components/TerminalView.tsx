@@ -20,15 +20,19 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
   const sessionIdRef = useRef<string | null>(null)
 
   const config = useApp((s) => s.config)
+  const registerSession = useApp((s) => s.registerSession)
+  const unregisterSession = useApp((s) => s.unregisterSession)
   const themeId = config?.theme ?? 'modern'
   const fontSize = config?.fontSize ?? 13
   const cursorBlink = config?.cursorBlink ?? true
+  const cursorStyle = config?.cursorStyle ?? 'bar'
 
   useEffect(() => {
     const term = new XTerm({
       fontFamily: FONT_FAMILY,
       fontSize,
       cursorBlink,
+      cursorStyle,
       allowProposedApi: true,
       theme: getTheme(themeId).terminal,
     })
@@ -61,6 +65,7 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
         return
       }
       sessionIdRef.current = id
+      registerSession(tab.id, id)
       offData = window.bonsai.session.onData((sid, data) => {
         if (sid === id) term.write(data)
       })
@@ -89,6 +94,7 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
       ro.disconnect()
       offData()
       offExit()
+      unregisterSession(tab.id)
       if (sessionIdRef.current) window.bonsai.session.kill(sessionIdRef.current)
       term.dispose()
     }
@@ -102,6 +108,7 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     term.options.theme = getTheme(themeId).terminal
     term.options.fontSize = fontSize
     term.options.cursorBlink = cursorBlink
+    term.options.cursorStyle = cursorStyle
     try {
       fitRef.current?.fit()
       const id = sessionIdRef.current
@@ -109,7 +116,7 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     } catch {
       /* not visible yet */
     }
-  }, [themeId, fontSize, cursorBlink])
+  }, [themeId, fontSize, cursorBlink, cursorStyle])
 
   useEffect(() => {
     if (!active) return

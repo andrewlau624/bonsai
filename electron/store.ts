@@ -1,11 +1,12 @@
 import Store from 'electron-store'
-import type { Repo, TabState, LayoutState, AppConfig } from '../shared/types'
+import type { Repo, TabState, LayoutState, AppConfig, SavedCommand } from '../shared/types'
 
 interface Schema {
   repos: Repo[]
   tabs: TabState[]
   layout: LayoutState
   config: AppConfig
+  commands: Record<string, SavedCommand[]>
 }
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -13,6 +14,10 @@ const DEFAULT_CONFIG: AppConfig = {
   density: 'comfortable',
   fontSize: 13,
   cursorBlink: true,
+  uiFont: 'system',
+  corners: 'soft',
+  cursorStyle: 'bar',
+  animations: true,
   modes: {},
   profiles: [],
 }
@@ -24,6 +29,7 @@ const store = new Store<Schema>({
     tabs: [],
     layout: { expandedRepoIds: [], expandedBranches: [], activeTabId: null },
     config: DEFAULT_CONFIG,
+    commands: {},
   },
 })
 
@@ -56,4 +62,12 @@ export function setConfig(patch: Partial<AppConfig>): AppConfig {
 
 export function configPath(): string {
   return store.path
+}
+
+export function getCommands(repoId: string): SavedCommand[] {
+  return store.get('commands')[repoId] ?? []
+}
+
+export function setCommands(repoId: string, list: SavedCommand[]): void {
+  store.set('commands', { ...store.get('commands'), [repoId]: list })
 }

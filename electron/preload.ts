@@ -10,6 +10,9 @@ import type {
   TabState,
   LayoutState,
   AppConfig,
+  SavedCommand,
+  PrStatus,
+  PullRequestDetail,
 } from '../shared/types'
 
 const api: BonsaiApi = {
@@ -74,6 +77,26 @@ const api: BonsaiApi = {
     path: () => ipcRenderer.invoke('config:path') as Promise<string>,
     reveal: () => ipcRenderer.invoke('config:reveal') as Promise<void>,
   },
+  commands: {
+    list: (repoId) => ipcRenderer.invoke('commands:list', repoId) as Promise<SavedCommand[]>,
+    save: (repoId, list) => ipcRenderer.invoke('commands:save', repoId, list) as Promise<void>,
+  },
+  pr: {
+    list: (cwd) => ipcRenderer.invoke('pr:list', cwd) as Promise<PrStatus>,
+    view: (cwd, num) => ipcRenderer.invoke('pr:view', cwd, num) as Promise<PullRequestDetail>,
+    create: (cwd, data) =>
+      ipcRenderer.invoke('pr:create', cwd, data) as Promise<{ url: string }>,
+    edit: (cwd, num, data) => ipcRenderer.invoke('pr:edit', cwd, num, data) as Promise<void>,
+  },
+  window: {
+    openCode: (cwd, file) => ipcRenderer.invoke('window:openCode', cwd, file) as Promise<void>,
+    onNavigate: (cb) => {
+      const listener = (_e: unknown, file: string) => cb(file)
+      ipcRenderer.on('code:navigate', listener)
+      return () => ipcRenderer.removeListener('code:navigate', listener)
+    },
+  },
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) as Promise<void>,
   onOpenSettings: (cb) => {
     const listener = () => cb()
     ipcRenderer.on('menu:open-settings', listener)

@@ -1,10 +1,19 @@
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Repo, SessionOptions, TabState, LayoutState, AppConfig } from '../shared/types'
+import type {
+  Repo,
+  SessionOptions,
+  TabState,
+  LayoutState,
+  AppConfig,
+  SavedCommand,
+} from '../shared/types'
 import * as gitOps from './git'
 import * as ptyMgr from './pty'
 import * as store from './store'
+import * as github from './github'
+import { openCodeWindow } from './main'
 
 export function registerIpc(): void {
   // ---- Repos ----
@@ -109,4 +118,26 @@ export function registerIpc(): void {
   ipcMain.handle('config:set', (_e, patch: Partial<AppConfig>) => store.setConfig(patch))
   ipcMain.handle('config:path', () => store.configPath())
   ipcMain.handle('config:reveal', () => shell.showItemInFolder(store.configPath()))
+
+  // ---- Saved commands ----
+  ipcMain.handle('commands:list', (_e, repoId: string) => store.getCommands(repoId))
+  ipcMain.handle('commands:save', (_e, repoId: string, list: SavedCommand[]) =>
+    store.setCommands(repoId, list),
+  )
+
+  // ---- Code viewer window ----
+  ipcMain.handle('window:openCode', (_e, cwd: string, file: string) => openCodeWindow(cwd, file))
+  ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
+
+  // ---- Pull requests (gh) ----
+  ipcMain.handle('pr:list', (_e, cwd: string) => github.prList(cwd))
+  ipcMain.handle('pr:view', (_e, cwd: string, num: number) => github.prView(cwd, num))
+  ipcMain.handle(
+    'pr:create',
+    (_e, cwd: string, data: { title: string; body: string; base?: string; draft?: boolean }) =>
+      github.prCreate(cwd, data),
+  )
+  ipcMain.handle('pr:edit', (_e, cwd: string, num: number, data: { title: string; body: string }) =>
+    github.prEdit(cwd, num, data),
+  )
 }

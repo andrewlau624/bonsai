@@ -41,11 +41,21 @@ repo/branch a tab is actually in. Bonsai makes the git topology the UI.
 - **One-click git:** a Source Control drawer with stage / unstage / stage-all,
   a commit box (`⌘↵` to commit — stages everything if nothing is staged), and
   Fetch / Pull / Push buttons with live ahead/behind counts.
-- **Changes → diff → full file → directory** drill-in: see what changed, open a
-  syntax-clean unified diff, then "Full file" to read the whole thing with a
-  directory navigator showing exactly where it sits and what's around it.
+- **Changes → diff → full file** drill-in: see what changed, open a clean unified
+  diff, then "Full file" to open it in a **dedicated code-viewer window** with a
+  file-tree to browse the worktree and see how it all connects.
+- **Pull requests** (via the `gh` CLI): list, view, create from the current
+  branch, and edit title/body — without leaving the app.
+- **Saved commands**: bookmark a command or a sequence per repo in the bottom
+  bar; one click runs it in the active terminal.
+- **Themes & deep customization** — 7 themes (Modern, Midnight, Daylight, Boxy,
+  Claude, Hacker, Synthwave) plus interface font, corner style, density,
+  animations, cursor shape, and font size. Bundle any setup into a **Profile**
+  and switch in one click. Opened from the macOS menu bar (`⌘,`) or the gear.
+- **Modes**: toggleable behaviors (auto-carry `.env`, auto-fetch, confirm before
+  delete/push, …) — see [`CONFIG.md`](./CONFIG.md).
 - A permanent breadcrumb (`repo • branch • path`) so you always know where you are.
-- Clean, modern dark UI with inline SVG icons (no emoji), macOS-native window chrome.
+- Clean, modern UI with a real icon set (lucide), macOS-native window chrome.
 
 ## Stack
 

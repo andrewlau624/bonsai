@@ -12,6 +12,42 @@ const DIST_ELECTRON = __dirname
 const DIST_RENDERER = path.join(__dirname, '../dist')
 
 let win: BrowserWindow | null = null
+const codeWindows = new Map<string, BrowserWindow>()
+
+/** Open (or focus) a standalone code-viewer window for a worktree. */
+export function openCodeWindow(cwd: string, file: string): void {
+  const key = cwd
+  const existing = codeWindows.get(key)
+  if (existing && !existing.isDestroyed()) {
+    existing.focus()
+    existing.webContents.send('code:navigate', file)
+    return
+  }
+
+  const cw = new BrowserWindow({
+    width: 1100,
+    height: 800,
+    backgroundColor: '#0b0f14',
+    titleBarStyle: 'hiddenInset',
+    title: 'Bonsai — Code',
+    webPreferences: {
+      preload: path.join(DIST_ELECTRON, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  })
+
+  const params = `view=code&cwd=${encodeURIComponent(cwd)}&file=${encodeURIComponent(file)}`
+  if (DEV_SERVER_URL) {
+    cw.loadURL(`${DEV_SERVER_URL}?${params}`)
+  } else {
+    cw.loadFile(path.join(DIST_RENDERER, 'index.html'), { search: params })
+  }
+
+  codeWindows.set(key, cw)
+  cw.on('closed', () => codeWindows.delete(key))
+}
 
 function createWindow(): void {
   win = new BrowserWindow({

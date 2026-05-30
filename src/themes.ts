@@ -353,12 +353,45 @@ export function getTheme(id: string): Theme {
   return THEMES.find((t) => t.id === id) ?? THEMES[0]
 }
 
-/** Apply a theme's CSS variables to the document root, plus density. */
-export function applyTheme(id: string, density: 'comfortable' | 'compact' = 'comfortable'): void {
+export const UI_FONTS: Record<string, string> = {
+  system: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif",
+  rounded: "ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', 'Nunito', 'Quicksand', system-ui, sans-serif",
+  mono: "ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace",
+  serif: "'Iowan Old Style', Georgia, 'Times New Roman', serif",
+}
+
+const CORNERS: Record<string, { r: string; sm: string }> = {
+  sharp: { r: '0px', sm: '0px' },
+  soft: { r: '', sm: '' }, // keep the theme's own values
+  round: { r: '16px', sm: '11px' },
+}
+
+export interface StyleOptions {
+  density: 'comfortable' | 'compact'
+  uiFont: keyof typeof UI_FONTS
+  corners: keyof typeof CORNERS
+  animations: boolean
+}
+
+/** Apply a theme plus the user's structural style choices to the document root. */
+export function applyTheme(id: string, opts: StyleOptions): void {
   const theme = getTheme(id)
   const root = document.documentElement
   for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v)
+
+  // UI font override (mono stays from the theme).
+  root.style.setProperty('--font-ui', UI_FONTS[opts.uiFont] ?? UI_FONTS.system)
+
+  // Corner style override (soft = theme default, so clear the override).
+  const corner = CORNERS[opts.corners] ?? CORNERS.soft
+  if (corner.r) {
+    root.style.setProperty('--radius', corner.r)
+    root.style.setProperty('--radius-sm', corner.sm)
+  }
+
   root.dataset.theme = theme.id
   root.dataset.group = theme.group.toLowerCase()
-  root.dataset.density = density
+  root.dataset.density = opts.density
+  root.dataset.animations = opts.animations ? 'on' : 'off'
+  root.dataset.uifont = opts.uiFont
 }

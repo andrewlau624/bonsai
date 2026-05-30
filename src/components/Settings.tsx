@@ -21,6 +21,26 @@ function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   )
 }
 
+function Seg<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { v: T; label: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="segmented">
+      {options.map((o) => (
+        <button key={o.v} className={value === o.v ? 'active' : ''} onClick={() => onChange(o.v)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function Appearance() {
   const { config, updateConfig } = useApp()
   if (!config) return null
@@ -37,27 +57,72 @@ function Appearance() {
             <div className="theme-preview" style={{ background: t.swatch[0] }}>
               <span className="sw" style={{ background: t.swatch[1] }} />
               <span className="sw" style={{ background: t.swatch[2] }} />
+              <span className="sw ghost" style={{ borderColor: t.swatch[1] }} />
             </div>
             <div className="theme-meta">
               <span className="theme-name">{t.name}</span>
-              <span className="theme-group">{t.group}</span>
+              {config.theme === t.id ? (
+                <Icon name="check" size={13} className="theme-check" />
+              ) : (
+                <span className="theme-group">{t.group}</span>
+              )}
             </div>
-            {config.theme === t.id && <Icon name="check" size={14} className="theme-check" />}
           </button>
         ))}
       </div>
 
-      <h4 className="set-h">Density</h4>
-      <div className="segmented">
-        {(['comfortable', 'compact'] as const).map((d) => (
-          <button
-            key={d}
-            className={config.density === d ? 'active' : ''}
-            onClick={() => updateConfig({ density: d })}
-          >
-            {d[0].toUpperCase() + d.slice(1)}
-          </button>
-        ))}
+      <h4 className="set-h">Interface</h4>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Font</span>
+          <span className="set-desc">Typeface used across the interface.</span>
+        </div>
+        <Seg
+          value={config.uiFont}
+          onChange={(v) => updateConfig({ uiFont: v })}
+          options={[
+            { v: 'system', label: 'System' },
+            { v: 'rounded', label: 'Rounded' },
+            { v: 'mono', label: 'Mono' },
+            { v: 'serif', label: 'Serif' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Corners</span>
+          <span className="set-desc">How rounded panels, buttons, and cards are.</span>
+        </div>
+        <Seg
+          value={config.corners}
+          onChange={(v) => updateConfig({ corners: v })}
+          options={[
+            { v: 'sharp', label: 'Sharp' },
+            { v: 'soft', label: 'Soft' },
+            { v: 'round', label: 'Round' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Density</span>
+          <span className="set-desc">Spacing and overall compactness.</span>
+        </div>
+        <Seg
+          value={config.density}
+          onChange={(v) => updateConfig({ density: v })}
+          options={[
+            { v: 'comfortable', label: 'Comfortable' },
+            { v: 'compact', label: 'Compact' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Animations</span>
+          <span className="set-desc">Play transitions and motion across the UI.</span>
+        </div>
+        <Switch on={config.animations} onChange={(v) => updateConfig({ animations: v })} />
       </div>
 
       <h4 className="set-h">Terminal</h4>
@@ -71,6 +136,21 @@ function Appearance() {
           <span>{config.fontSize}px</span>
           <button onClick={() => updateConfig({ fontSize: Math.min(24, config.fontSize + 1) })}>+</button>
         </div>
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Cursor</span>
+          <span className="set-desc">Shape of the terminal cursor.</span>
+        </div>
+        <Seg
+          value={config.cursorStyle}
+          onChange={(v) => updateConfig({ cursorStyle: v })}
+          options={[
+            { v: 'bar', label: 'Bar' },
+            { v: 'block', label: 'Block' },
+            { v: 'underline', label: 'Line' },
+          ]}
+        />
       </div>
       <div className="set-row">
         <div className="set-label">

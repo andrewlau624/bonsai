@@ -73,6 +73,35 @@ export interface TabState {
   title: string
 }
 
+export interface SavedCommand {
+  id: string
+  name: string
+  /** One or more shell commands run in sequence in the active terminal. */
+  commands: string[]
+}
+
+export interface PullRequest {
+  number: number
+  title: string
+  state: string
+  url: string
+  headRefName: string
+  isDraft: boolean
+  author: string
+}
+
+export interface PullRequestDetail extends PullRequest {
+  body: string
+  baseRefName: string
+  additions: number
+  deletions: number
+  commits: number
+}
+
+export type PrStatus =
+  | { available: false; reason: string }
+  | { available: true; prs: PullRequest[] }
+
 export interface Profile {
   id: string
   name: string
@@ -83,12 +112,24 @@ export interface Profile {
   modes: Record<string, boolean>
 }
 
+export type UiFont = 'system' | 'rounded' | 'mono' | 'serif'
+export type Corners = 'sharp' | 'soft' | 'round'
+export type CursorStyle = 'bar' | 'block' | 'underline'
+
 /** User-tunable configuration, persisted and editable as a JSON file. */
 export interface AppConfig {
   theme: string
   density: 'comfortable' | 'compact'
   fontSize: number
   cursorBlink: boolean
+  /** Interface font family style. */
+  uiFont: UiFont
+  /** Corner rounding style across the UI. */
+  corners: Corners
+  /** Terminal cursor shape. */
+  cursorStyle: CursorStyle
+  /** Whether UI transitions/animations play. */
+  animations: boolean
   /** Overrides for the mode toggles defined in the renderer (key -> on/off). */
   modes: Record<string, boolean>
   profiles: Profile[]
@@ -145,5 +186,25 @@ export interface BonsaiApi {
     path(): Promise<string>
     reveal(): Promise<void>
   }
+  commands: {
+    list(repoId: string): Promise<SavedCommand[]>
+    save(repoId: string, list: SavedCommand[]): Promise<void>
+  }
+  pr: {
+    list(cwd: string): Promise<PrStatus>
+    view(cwd: string, num: number): Promise<PullRequestDetail>
+    create(
+      cwd: string,
+      data: { title: string; body: string; base?: string; draft?: boolean },
+    ): Promise<{ url: string }>
+    edit(cwd: string, num: number, data: { title: string; body: string }): Promise<void>
+  }
+  window: {
+    /** Open the standalone code viewer window for a worktree (optionally at a file). */
+    openCode(cwd: string, file: string): Promise<void>
+    /** (Code window) fired when the main window requests navigation to a file. */
+    onNavigate(cb: (file: string) => void): () => void
+  }
+  openExternal(url: string): Promise<void>
   onOpenSettings(cb: () => void): () => void
 }

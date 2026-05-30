@@ -8,6 +8,9 @@ import type {
   DirEntry,
   AppConfig,
   Profile,
+  SavedCommand,
+  PrStatus,
+  PullRequestDetail,
 } from '../shared/types'
 import { applyTheme } from './themes'
 import { modeValue } from './modes'
@@ -17,47 +20,57 @@ const nextTabId = () => `t${Date.now()}-${++tabCounter}`
 
 const branchKey = (repoId: string, branch: string) => `${repoId}::${branch}`
 
-/** What the Source Control drawer is currently showing. */
 type InspectorView =
   | { kind: 'list' }
   | { kind: 'diff'; file: string; staged: boolean; diff: string }
-  | {
-      kind: 'file'
-      file: string
-      content: string
-      truncated: boolean
-      dir: string
-      entries: DirEntry[]
-    }
+
+export type DrawerPanel = 'changes' | 'files' | 'prs'
 
 type Modal =
   | { type: 'newBranch'; repoId: string }
   | { type: 'confirmDelete'; repoId: string; branch: string }
   | null
 
+function applyConfig(c: AppConfig) {
+  applyTheme(c.theme, {
+    density: c.density,
+    uiFont: c.uiFont,
+    corners: c.corners,
+    animations: c.animations,
+  })
+}
+
 interface AppState {
   repos: Repo[]
   branchesByRepo: Record<string, Branch[]>
-  worktrees: Record<string, Worktree> // keyed by branchKey
+  worktrees: Record<string, Worktree>
   tabs: TabState[]
   activeTabId: string | null
   expandedRepoIds: Set<string>
   expandedBranches: Set<string>
   loading: Set<string>
 
-  // Source control
   scOpen: boolean
+  panel: DrawerPanel
   statusByCwd: Record<string, GitStatus>
   inspector: InspectorView
   commitMessage: string
-  syncing: string | null // label of the in-flight git op, for spinner text
+  syncing: string | null
 
-  // Branch search + modals
+  filesDir: string
+  filesEntries: DirEntry[]
+
+  sessionByTab: Record<string, string>
+  commandsByRepo: Record<string, SavedCommand[]>
+
+  prStatus: PrStatus | null
+  prDetail: PullRequestDetail | null
+  prBusy: boolean
+
   searchOpen: boolean
   branchFilter: string
   modal: Modal
 
-  // Config / settings
   config: AppConfig | null
   settingsOpen: boolean
 
@@ -72,9 +85,9 @@ interface AppState {
   closeTab: (id: string) => void
   persist: () => void
 
-  // SC actions
   activeTab: () => TabState | undefined
   toggleSourceControl: () => void
+  setPanel: (p: DrawerPanel) => void
   refreshStatus: () => Promise<void>
   stage: (file: string) => Promise<void>
   unstage: (file: string) => Promise<void>
@@ -83,11 +96,22 @@ interface AppState {
   sync: (op: 'push' | 'pull' | 'fetch') => Promise<void>
   setCommitMessage: (m: string) => void
   openDiff: (file: string, staged: boolean) => Promise<void>
-  openFile: (relPath: string) => Promise<void>
-  openDir: (relPath: string) => Promise<void>
   backToList: () => void
+  browseFiles: (relPath: string) => Promise<void>
+  openCode: (file?: string) => void
 
-  // Branch mgmt + search
+  registerSession: (tabId: string, sessionId: string) => void
+  unregisterSession: (tabId: string) => void
+  runCommands: (commands: string[]) => void
+  loadCommands: (repoId: string) => Promise<void>
+  saveCommands: (repoId: string, list: SavedCommand[]) => Promise<void>
+
+  loadPrs: () => Promise<void>
+  viewPr: (num: number) => Promise<void>
+  createPr: (data: { title: string; body: string; draft?: boolean }) => Promise<string | null>
+  editPr: (num: number, data: { title: string; body: string }) => Promise<void>
+  closePrDetail: () => void
+
   setSearchOpen: (v: boolean) => void
   setBranchFilter: (v: string) => void
   openModal: (m: Modal) => void
@@ -96,7 +120,6 @@ interface AppState {
   requestDeleteBranch: (repoId: string, branch: string) => void
   deleteBranch: (repoId: string, branch: string) => Promise<void>
 
-  // Config
   mode: (key: string) => boolean
   setSettingsOpen: (v: boolean) => void
   updateConfig: (patch: Partial<AppConfig>) => Promise<void>
@@ -117,10 +140,21 @@ export const useApp = create<AppState>((set, get) => ({
   loading: new Set(),
 
   scOpen: false,
+  panel: 'changes',
   statusByCwd: {},
   inspector: { kind: 'list' },
   commitMessage: '',
   syncing: null,
+
+  filesDir: '',
+  filesEntries: [],
+
+  sessionByTab: {},
+  commandsByRepo: {},
+
+  prStatus: null,
+  prDetail: null,
+  prBusy: false,
 
   searchOpen: false,
   branchFilter: '',
@@ -131,7 +165,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   init: async () => {
     const config = await window.bonsai.config.get()
-    applyTheme(config.theme, config.density)
+    applyConfig(config)
     set({ config })
 
     const repos = await window.bonsai.repos.list()
@@ -147,6 +181,7 @@ export const useApp = create<AppState>((set, get) => ({
       const branches = await window.bonsai.repos.branches(id)
       set((s) => ({ branchesByRepo: { ...s.branchesByRepo, [id]: branches } }))
     }
+    for (const r of repos) void get().loadCommands(r.id)
     void get().refreshStatus()
   },
 
@@ -154,6 +189,7 @@ export const useApp = create<AppState>((set, get) => ({
     const repo = await window.bonsai.repos.add()
     if (!repo) return
     set((s) => (s.repos.some((r) => r.id === repo.id) ? s : { repos: [...s.repos, repo] }))
+    void get().loadCommands(repo.id)
     await get().toggleRepo(repo.id)
   },
 
@@ -195,7 +231,7 @@ export const useApp = create<AppState>((set, get) => ({
       try {
         await window.bonsai.git.fetch(repoId)
       } catch {
-        /* offline / no remote — ignore */
+        /* offline / no remote */
       }
     }
     const existing = get().tabs.find((t) => t.repoId === repoId && t.branch === branch)
@@ -282,7 +318,17 @@ export const useApp = create<AppState>((set, get) => ({
   toggleSourceControl: () => {
     const next = !get().scOpen
     set({ scOpen: next, inspector: { kind: 'list' } })
-    if (next) void get().refreshStatus()
+    if (next) {
+      void get().refreshStatus()
+      if (get().panel === 'prs') void get().loadPrs()
+      if (get().panel === 'files') void get().browseFiles('')
+    }
+  },
+
+  setPanel: (p) => {
+    set({ panel: p, inspector: { kind: 'list' } })
+    if (p === 'prs') void get().loadPrs()
+    if (p === 'files') void get().browseFiles('')
   },
 
   refreshStatus: async () => {
@@ -365,29 +411,117 @@ export const useApp = create<AppState>((set, get) => ({
     set({ inspector: { kind: 'diff', file, staged, diff } })
   },
 
-  openFile: async (relPath) => {
-    const tab = get().activeTab()
-    if (!tab) return
-    const [{ content, truncated }, entries] = await Promise.all([
-      window.bonsai.git.readFile(tab.cwd, relPath),
-      window.bonsai.git.listDir(tab.cwd, dirname(relPath)),
-    ])
-    set({
-      inspector: { kind: 'file', file: relPath, content, truncated, dir: dirname(relPath), entries },
-    })
-  },
+  backToList: () => set({ inspector: { kind: 'list' } }),
 
-  openDir: async (relPath) => {
+  browseFiles: async (relPath) => {
     const tab = get().activeTab()
     if (!tab) return
-    const entries = await window.bonsai.git.listDir(tab.cwd, relPath)
-    const cur = get().inspector
-    if (cur.kind === 'file') {
-      set({ inspector: { ...cur, dir: relPath, entries } })
+    try {
+      const entries = await window.bonsai.git.listDir(tab.cwd, relPath)
+      set({ filesDir: relPath, filesEntries: entries })
+    } catch (err) {
+      console.error('browse failed', err)
     }
   },
 
-  backToList: () => set({ inspector: { kind: 'list' } }),
+  openCode: (file = '') => {
+    const tab = get().activeTab()
+    if (!tab) return
+    void window.bonsai.window.openCode(tab.cwd, file)
+  },
+
+  // ---- Session registry + saved commands ----
+  registerSession: (tabId, sessionId) =>
+    set((s) => ({ sessionByTab: { ...s.sessionByTab, [tabId]: sessionId } })),
+
+  unregisterSession: (tabId) =>
+    set((s) => {
+      const next = { ...s.sessionByTab }
+      delete next[tabId]
+      return { sessionByTab: next }
+    }),
+
+  runCommands: (commands) => {
+    const { activeTabId, sessionByTab } = get()
+    if (!activeTabId) return
+    const sid = sessionByTab[activeTabId]
+    if (!sid) return
+    for (const cmd of commands) {
+      if (cmd.trim()) window.bonsai.session.write(sid, cmd + '\n')
+    }
+  },
+
+  loadCommands: async (repoId) => {
+    const list = await window.bonsai.commands.list(repoId)
+    set((s) => ({ commandsByRepo: { ...s.commandsByRepo, [repoId]: list } }))
+  },
+
+  saveCommands: async (repoId, list) => {
+    await window.bonsai.commands.save(repoId, list)
+    set((s) => ({ commandsByRepo: { ...s.commandsByRepo, [repoId]: list } }))
+  },
+
+  // ---- Pull requests ----
+  loadPrs: async () => {
+    const tab = get().activeTab()
+    if (!tab) return
+    set({ prBusy: true, prDetail: null })
+    try {
+      const prStatus = await window.bonsai.pr.list(tab.cwd)
+      set({ prStatus })
+    } catch (err) {
+      set({ prStatus: { available: false, reason: (err as Error).message } })
+    } finally {
+      set({ prBusy: false })
+    }
+  },
+
+  viewPr: async (num) => {
+    const tab = get().activeTab()
+    if (!tab) return
+    set({ prBusy: true })
+    try {
+      const prDetail = await window.bonsai.pr.view(tab.cwd, num)
+      set({ prDetail })
+    } catch (err) {
+      alert(`Could not load PR #${num}:\n${(err as Error).message}`)
+    } finally {
+      set({ prBusy: false })
+    }
+  },
+
+  createPr: async (data) => {
+    const tab = get().activeTab()
+    if (!tab) return null
+    set({ prBusy: true })
+    try {
+      const { url } = await window.bonsai.pr.create(tab.cwd, data)
+      await get().loadPrs()
+      return url
+    } catch (err) {
+      alert(`Could not create PR:\n${(err as Error).message}`)
+      return null
+    } finally {
+      set({ prBusy: false })
+    }
+  },
+
+  editPr: async (num, data) => {
+    const tab = get().activeTab()
+    if (!tab) return
+    set({ prBusy: true })
+    try {
+      await window.bonsai.pr.edit(tab.cwd, num, data)
+      await get().viewPr(num)
+      await get().loadPrs()
+    } catch (err) {
+      alert(`Could not update PR:\n${(err as Error).message}`)
+    } finally {
+      set({ prBusy: false })
+    }
+  },
+
+  closePrDetail: () => set({ prDetail: null }),
 
   // ---- Branch search + management ----
   setSearchOpen: (v) => set({ searchOpen: v, branchFilter: v ? get().branchFilter : '' }),
@@ -434,7 +568,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   updateConfig: async (patch) => {
     const next = await window.bonsai.config.set(patch)
-    applyTheme(next.theme, next.density)
+    applyConfig(next)
     set({ config: next })
   },
 
@@ -478,10 +612,5 @@ export const useApp = create<AppState>((set, get) => ({
     await get().updateConfig({ profiles: c.profiles.filter((p) => p.id !== id) })
   },
 }))
-
-function dirname(p: string): string {
-  const i = p.lastIndexOf('/')
-  return i <= 0 ? '' : p.slice(0, i)
-}
 
 export { branchKey }

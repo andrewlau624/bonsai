@@ -6,6 +6,7 @@ import { TerminalView } from './components/TerminalView'
 import { SourceControl } from './components/SourceControl'
 import { Modal } from './components/Modal'
 import { Settings } from './components/Settings'
+import { CommandBar } from './components/CommandBar'
 import { Icon } from './components/Icon'
 
 export default function App() {
@@ -89,6 +90,7 @@ export default function App() {
           </div>
           <SourceControl />
         </div>
+        <CommandBar />
       </main>
       <Modal />
       <Settings />
