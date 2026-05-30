@@ -79,6 +79,7 @@ interface AppState {
   sessionByTab: Record<string, string>
   commandsByRepo: Record<string, SavedCommand[]>
   runnablesByCwd: Record<string, RunnableGroup[]>
+  usageByRepo: Record<string, Record<string, number>>
 
   prStatus: PrStatus | null
   prDetail: PullRequestDetail | null
@@ -134,6 +135,8 @@ interface AppState {
   loadRunnables: () => Promise<void>
   loadCommands: (repoId: string) => Promise<void>
   saveCommands: (repoId: string, list: SavedCommand[]) => Promise<void>
+  toggleBookmark: (label: string, command: string) => void
+  isBookmarked: (command: string) => boolean
 
   loadPrs: () => Promise<void>
   viewPr: (num: number) => Promise<void>
@@ -206,6 +209,7 @@ export const useApp = create<AppState>((set, get) => ({
   sessionByTab: {},
   commandsByRepo: {},
   runnablesByCwd: {},
+  usageByRepo: {},
 
   prStatus: null,
   prDetail: null,
@@ -535,10 +539,14 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   runCommandText: (command) => {
-    const { activeTabId, sessionByTab } = get()
-    if (!activeTabId) return
-    const sid = sessionByTab[activeTabId]
+    const tab = get().activeTab()
+    if (!tab) return
+    const sid = get().sessionByTab[tab.id]
     if (sid) window.bonsai.session.write(sid, `${command}\n`)
+    // Track usage so frequently-run tasks can be surfaced.
+    void window.bonsai.usage.bump(tab.repoId, command).then((counts) =>
+      set((s) => ({ usageByRepo: { ...s.usageByRepo, [tab.repoId]: counts } })),
+    )
   },
 
   loadRunnables: async () => {
@@ -547,6 +555,12 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const groups = await window.bonsai.git.runnables(tab.cwd)
       set((s) => ({ runnablesByCwd: { ...s.runnablesByCwd, [tab.cwd]: groups } }))
+    } catch {
+      /* ignore */
+    }
+    try {
+      const counts = await window.bonsai.usage.get(tab.repoId)
+      set((s) => ({ usageByRepo: { ...s.usageByRepo, [tab.repoId]: counts } }))
     } catch {
       /* ignore */
     }
@@ -560,6 +574,24 @@ export const useApp = create<AppState>((set, get) => ({
   saveCommands: async (repoId, list) => {
     await window.bonsai.commands.save(repoId, list)
     set((s) => ({ commandsByRepo: { ...s.commandsByRepo, [repoId]: list } }))
+  },
+
+  isBookmarked: (command) => {
+    const tab = get().activeTab()
+    if (!tab) return false
+    const list = get().commandsByRepo[tab.repoId] ?? []
+    return list.some((c) => c.commands.length === 1 && c.commands[0] === command)
+  },
+
+  toggleBookmark: (label, command) => {
+    const tab = get().activeTab()
+    if (!tab) return
+    const list = get().commandsByRepo[tab.repoId] ?? []
+    const existing = list.find((c) => c.commands.length === 1 && c.commands[0] === command)
+    const next = existing
+      ? list.filter((c) => c.id !== existing.id)
+      : [...list, { id: `c${Date.now()}`, name: label, commands: [command], action: 'run' as const }]
+    void get().saveCommands(tab.repoId, next)
   },
 
   // ---- Pull requests ----

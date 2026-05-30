@@ -31,6 +31,7 @@ import {
   MessageSquare,
   Play,
   Globe,
+  Star,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -71,6 +72,7 @@ const MAP = {
   comment: MessageSquare,
   play: Play,
   globe: Globe,
+  star: Star,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof MAP

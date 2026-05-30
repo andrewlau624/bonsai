@@ -7,6 +7,7 @@ interface Schema {
   layout: LayoutState
   config: AppConfig
   commands: Record<string, SavedCommand[]>
+  usage: Record<string, Record<string, number>>
 }
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -39,6 +40,7 @@ const store = new Store<Schema>({
     layout: { expandedRepoIds: [], expandedBranches: [], activeTabId: null },
     config: DEFAULT_CONFIG,
     commands: {},
+    usage: {},
   },
 })
 
@@ -79,4 +81,16 @@ export function getCommands(repoId: string): SavedCommand[] {
 
 export function setCommands(repoId: string, list: SavedCommand[]): void {
   store.set('commands', { ...store.get('commands'), [repoId]: list })
+}
+
+export function getUsage(repoId: string): Record<string, number> {
+  return store.get('usage')[repoId] ?? {}
+}
+
+export function bumpUsage(repoId: string, command: string): Record<string, number> {
+  const all = store.get('usage')
+  const repo = { ...(all[repoId] ?? {}) }
+  repo[command] = (repo[command] ?? 0) + 1
+  store.set('usage', { ...all, [repoId]: repo })
+  return repo
 }

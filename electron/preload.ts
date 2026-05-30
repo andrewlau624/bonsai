@@ -89,6 +89,11 @@ const api: BonsaiApi = {
     list: (repoId) => ipcRenderer.invoke('commands:list', repoId) as Promise<SavedCommand[]>,
     save: (repoId, list) => ipcRenderer.invoke('commands:save', repoId, list) as Promise<void>,
   },
+  usage: {
+    get: (repoId) => ipcRenderer.invoke('usage:get', repoId) as Promise<Record<string, number>>,
+    bump: (repoId, command) =>
+      ipcRenderer.invoke('usage:bump', repoId, command) as Promise<Record<string, number>>,
+  },
   pr: {
     list: (cwd) => ipcRenderer.invoke('pr:list', cwd) as Promise<PrStatus>,
     view: (cwd, num) => ipcRenderer.invoke('pr:view', cwd, num) as Promise<PullRequestDetail>,

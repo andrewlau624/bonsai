@@ -283,6 +283,10 @@ export interface BonsaiApi {
     list(repoId: string): Promise<SavedCommand[]>
     save(repoId: string, list: SavedCommand[]): Promise<void>
   }
+  usage: {
+    get(repoId: string): Promise<Record<string, number>>
+    bump(repoId: string, command: string): Promise<Record<string, number>>
+  }
   pr: {
     list(cwd: string): Promise<PrStatus>
     view(cwd: string, num: number): Promise<PullRequestDetail>

@@ -2984,3 +2984,31 @@ kbd {
   font-size: 12px;
   font-style: italic;
 }
+
+/* ---------- Task bookmark star + frequent ---------- */
+.task-chip {
+  cursor: pointer;
+}
+.task-bm {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-faint);
+  opacity: 0;
+  margin-left: 2px;
+}
+.task-chip:hover .task-bm {
+  opacity: 1;
+}
+.task-bm:hover {
+  color: var(--yellow);
+}
+.task-bm.on {
+  opacity: 1;
+  color: var(--yellow);
+}
+.cmd-group-head.frequent {
+  background: rgba(217, 164, 65, 0.16);
+  color: var(--yellow);
+  border-color: transparent;
+  cursor: default;
+}

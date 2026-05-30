@@ -120,8 +120,8 @@ function groupLabel(g: RunnableGroup): string {
 }
 
 function TaskGroup({ group }: { group: RunnableGroup }) {
-  const { runCommandText } = useApp()
-  const [open, setOpen] = useState(group.kind !== 'md') // npm/make open, md collapsed
+  const { runCommandText, toggleBookmark, isBookmarked } = useApp()
+  const [open, setOpen] = useState(false) // all groups collapsed by default
   return (
     <div className="cmd-group">
       <button
@@ -136,30 +136,67 @@ function TaskGroup({ group }: { group: RunnableGroup }) {
       </button>
       {open &&
         group.items.map((it, i) => (
-          <button
-            key={i}
-            className="cmd-chip task-chip"
-            title={it.command}
-            onClick={() => runCommandText(it.command)}
-          >
+          <span key={i} className="cmd-chip task-chip" title={it.command} onClick={() => runCommandText(it.command)}>
             <span className="ellipsis">{it.label}</span>
-          </button>
+            <span
+              className={`task-bm ${isBookmarked(it.command) ? 'on' : ''}`}
+              title={isBookmarked(it.command) ? 'Remove bookmark' : 'Bookmark'}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleBookmark(it.label, it.command)
+              }}
+            >
+              <Icon name="star" size={11} />
+            </span>
+          </span>
         ))}
     </div>
   )
 }
 
 export function CommandBar() {
-  const { activeTab, commandsByRepo, runnablesByCwd, runSaved } = useApp()
+  const { activeTab, commandsByRepo, runnablesByCwd, usageByRepo, runSaved, runCommandText, toggleBookmark, isBookmarked } =
+    useApp()
   const [editing, setEditing] = useState(false)
   const tab = activeTab()
   if (!tab) return null
   const list = commandsByRepo[tab.repoId] ?? []
   const groups = runnablesByCwd[tab.cwd] ?? []
 
+  // Commands run often (and not already bookmarked) surface as quick chips.
+  const usage = usageByRepo[tab.repoId] ?? {}
+  const frequent = Object.entries(usage)
+    .filter(([cmd, n]) => n >= 3 && !isBookmarked(cmd))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([cmd]) => cmd)
+
   return (
     <div className="command-bar">
       <div className="cmd-chips">
+        {frequent.length > 0 && (
+          <div className="cmd-group">
+            <span className="cmd-group-head frequent" title="Frequently used">
+              <Icon name="star" size={11} /> Frequent
+            </span>
+            {frequent.map((cmd, i) => (
+              <span key={i} className="cmd-chip task-chip" title={cmd} onClick={() => runCommandText(cmd)}>
+                <span className="ellipsis">{cmd}</span>
+                <span
+                  className="task-bm"
+                  title="Bookmark"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleBookmark(cmd, cmd)
+                  }}
+                >
+                  <Icon name="star" size={11} />
+                </span>
+              </span>
+            ))}
+            <span className="cmd-divider" />
+          </div>
+        )}
         {groups.map((g) => (
           <TaskGroup key={g.source} group={g} />
         ))}
