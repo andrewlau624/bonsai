@@ -91,6 +91,7 @@ interface AppState {
   previewOpen: boolean
   previewUrl: string
   previewDetected: boolean
+  paneView: 'terminal' | 'preview'
 
   init: () => Promise<void>
   addRepo: () => Promise<void>
@@ -145,6 +146,7 @@ interface AppState {
   openPalette: () => void
   closePalette: () => void
   togglePreview: () => void
+  setPaneView: (v: 'terminal' | 'preview') => void
   setPreviewUrl: (url: string) => void
   openPreviewWindow: () => void
   detectPreviewUrl: (url: string) => void
@@ -216,6 +218,7 @@ export const useApp = create<AppState>((set, get) => ({
   previewOpen: false,
   previewUrl: 'http://localhost:3000',
   previewDetected: false,
+  paneView: 'terminal',
 
   init: async () => {
     const config = await window.bonsai.config.get()
@@ -687,15 +690,23 @@ export const useApp = create<AppState>((set, get) => ({
   openPalette: () => set({ paletteOpen: true }),
   closePalette: () => set({ paletteOpen: false }),
 
-  togglePreview: () => set((s) => ({ previewOpen: !s.previewOpen })),
+  togglePreview: () => {
+    const next = !get().previewOpen
+    set({ previewOpen: next, paneView: next ? 'preview' : 'terminal' })
+  },
+  setPaneView: (v) => set({ paneView: v }),
   setPreviewUrl: (url) => set({ previewUrl: url }),
   openPreviewWindow: () => void window.bonsai.window.openBrowser(get().previewUrl),
 
-  // Picks up a dev-server URL printed in the terminal (Vite/Next/CRA/etc.).
+  // Picks up a dev-server URL printed in the terminal (Vite/Next/CRA/etc.) and
+  // auto-opens the Preview tab the first time one appears.
   detectPreviewUrl: (url) => {
     const clean = url.replace(/[)\].,'"]+$/, '')
-    if (get().previewUrl === clean && get().previewDetected) return
-    set({ previewUrl: clean, previewDetected: true })
+    if (get().previewDetected) {
+      if (get().previewUrl !== clean) set({ previewUrl: clean })
+      return
+    }
+    set({ previewUrl: clean, previewDetected: true, previewOpen: true, paneView: 'preview' })
   },
 
   // A repo is a "web app" if it has a dev/start/serve/preview script, OR if a

@@ -493,10 +493,60 @@ button {
 }
 .terminals {
   flex: 1;
-  position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   min-height: 0;
   min-width: 0;
+}
+.pane-tabs {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  padding: 5px 8px 0;
+  background: var(--bg-elev);
+  border-bottom: var(--border-width) solid var(--border);
+}
+.pane-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.pane-tabs button:hover {
+  color: var(--text);
+}
+.pane-tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.pane-tab-close {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  border-radius: 4px;
+  padding: 1px;
+}
+.pane-tab-close:hover {
+  background: var(--bg-3);
+  color: var(--danger);
+}
+.pane-content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.pane-terminals,
+.pane-preview {
+  position: absolute;
+  inset: 0;
 }
 .term-pane {
   position: absolute;

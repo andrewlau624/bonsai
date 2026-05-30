@@ -3,12 +3,13 @@ import { useApp } from '../store'
 import { Icon } from './Icon'
 
 // Embedded localhost preview for web apps. Uses an Electron <webview> so dev
-// servers that block iframing still load. Only shown for web-app repos.
+// servers that block iframing still load. Mounted whenever the Preview tab
+// exists; visibility is controlled by the parent (so it keeps its page state
+// when you switch back to the terminal).
 export function Preview() {
-  const { previewOpen, previewUrl, setPreviewUrl, togglePreview, openPreviewWindow } = useApp()
+  const { previewUrl, setPreviewUrl, openPreviewWindow } = useApp()
   const [draft, setDraft] = useState(previewUrl)
   const viewRef = useRef<HTMLElement & { reload: () => void; src: string }>(null)
-  if (!previewOpen) return null
 
   const go = (url: string) => {
     const u = url.match(/^https?:\/\//) ? url : `http://${url}`
@@ -30,11 +31,8 @@ export function Preview() {
           onKeyDown={(e) => e.key === 'Enter' && go(draft)}
           spellCheck={false}
         />
-        <button className="icon-btn" title="Open in window" onClick={openPreviewWindow}>
+        <button className="icon-btn" title="Open in separate window" onClick={openPreviewWindow}>
           <Icon name="external" size={14} />
-        </button>
-        <button className="icon-btn" title="Close preview" onClick={togglePreview}>
-          <Icon name="close" size={15} />
         </button>
       </div>
       <webview ref={viewRef as never} className="preview-web" src={previewUrl} />

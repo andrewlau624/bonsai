@@ -32,6 +32,8 @@ export default function App() {
     isWebApp,
     previewOpen,
     togglePreview,
+    paneView,
+    setPaneView,
   } = useApp()
 
   useEffect(() => {
@@ -131,21 +133,48 @@ export default function App() {
 
         <div className="body">
           <div className="terminals">
-            {tabs.length === 0 && (
-              <div className="placeholder">
-                <Icon name="leaf" size={40} className="placeholder-mark" />
-                <h2>Bonsai</h2>
-                <p>Add a repo, expand it, and pick a branch to open a terminal.</p>
-                <p className="dim">
-                  Each branch gets its own git worktree — and your <code>.env</code> files are
-                  carried in automatically. Press <kbd>⌘K</kbd> to jump anywhere.
-                </p>
+            {previewOpen && (
+              <div className="pane-tabs">
+                <button
+                  className={paneView === 'terminal' ? 'active' : ''}
+                  onClick={() => setPaneView('terminal')}
+                >
+                  <Icon name="terminal" size={13} /> Terminal
+                </button>
+                <button
+                  className={paneView === 'preview' ? 'active' : ''}
+                  onClick={() => setPaneView('preview')}
+                >
+                  <Icon name="globe" size={13} /> Preview
+                  <span className="pane-tab-close" title="Close preview" onClick={(e) => { e.stopPropagation(); togglePreview() }}>
+                    <Icon name="close" size={11} />
+                  </span>
+                </button>
               </div>
             )}
-            {tabs.map((t) => (
-              <TerminalView key={t.id} tab={t} active={t.id === activeTabId} />
-            ))}
-            <Preview />
+            <div className="pane-content">
+              <div className="pane-terminals" style={{ display: paneView === 'preview' ? 'none' : 'block' }}>
+                {tabs.length === 0 && (
+                  <div className="placeholder">
+                    <Icon name="leaf" size={40} className="placeholder-mark" />
+                    <h2>Bonsai</h2>
+                    <p>Add a repo, expand it, and pick a branch to open a terminal.</p>
+                    <p className="dim">
+                      Each branch gets its own git worktree — and your <code>.env</code> files are
+                      carried in automatically. Press <kbd>⌘K</kbd> to jump anywhere.
+                    </p>
+                  </div>
+                )}
+                {tabs.map((t) => (
+                  <TerminalView key={t.id} tab={t} active={t.id === activeTabId && paneView === 'terminal'} />
+                ))}
+              </div>
+              {previewOpen && (
+                <div className="pane-preview" style={{ display: paneView === 'preview' ? 'block' : 'none' }}>
+                  <Preview />
+                </div>
+              )}
+            </div>
           </div>
           <SourceControl />
         </div>
