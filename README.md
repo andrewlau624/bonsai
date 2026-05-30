@@ -33,9 +33,19 @@ repo/branch a tab is actually in. Bonsai makes the git topology the UI.
 - Sidebar tree: **repos → branches → tabs**, expand/collapse, persisted across launches.
 - One click on a branch creates (or reuses) its git worktree and opens a terminal in it.
 - Multiple tabs per branch; tab/branch state survives restarts.
-- Automatic `.env*` carry-over (symlink, with copy fallback). A `.env×N` badge
+- Automatic `.env*` carry-over (symlink, with copy fallback). An `env N` badge
   shows how many files were carried.
-- macOS-native window chrome (hidden inset title bar).
+- **Branch management without the terminal:** create a branch (modal), delete a
+  branch (worktree is cleaned up for you), and a tucked-away **branch search**
+  that filters the tree only when you open it.
+- **One-click git:** a Source Control drawer with stage / unstage / stage-all,
+  a commit box (`⌘↵` to commit — stages everything if nothing is staged), and
+  Fetch / Pull / Push buttons with live ahead/behind counts.
+- **Changes → diff → full file → directory** drill-in: see what changed, open a
+  syntax-clean unified diff, then "Full file" to read the whole thing with a
+  directory navigator showing exactly where it sits and what's around it.
+- A permanent breadcrumb (`repo • branch • path`) so you always know where you are.
+- Clean, modern dark UI with inline SVG icons (no emoji), macOS-native window chrome.
 
 ## Stack
 

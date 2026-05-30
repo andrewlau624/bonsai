@@ -35,6 +35,35 @@ export interface SessionOptions {
   rows: number
 }
 
+export interface FileChange {
+  path: string
+  /** Staged status code from `git status` (e.g. 'M', 'A', ' '). */
+  index: string
+  /** Unstaged (working tree) status code. */
+  working: string
+  status: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflicted'
+  staged: boolean
+  unstaged: boolean
+  insertions?: number
+  deletions?: number
+}
+
+export interface GitStatus {
+  branch: string
+  tracking: string | null
+  ahead: number
+  behind: number
+  files: FileChange[]
+  clean: boolean
+}
+
+export interface DirEntry {
+  name: string
+  type: 'dir' | 'file'
+  /** Worktree-relative path. */
+  path: string
+}
+
 /** A persisted terminal tab. */
 export interface TabState {
   id: string
@@ -61,6 +90,21 @@ export interface BonsaiApi {
   }
   worktree: {
     ensure(repoId: string, branch: string): Promise<Worktree>
+  }
+  git: {
+    status(cwd: string): Promise<GitStatus>
+    stage(cwd: string, file: string): Promise<void>
+    unstage(cwd: string, file: string): Promise<void>
+    stageAll(cwd: string): Promise<void>
+    commit(cwd: string, message: string): Promise<void>
+    push(cwd: string): Promise<string>
+    pull(cwd: string): Promise<string>
+    fetch(repoId: string): Promise<void>
+    createBranch(repoId: string, name: string, from?: string): Promise<void>
+    deleteBranch(repoId: string, name: string, force?: boolean): Promise<void>
+    diffFile(cwd: string, file: string, staged: boolean): Promise<string>
+    readFile(cwd: string, relPath: string): Promise<{ content: string; truncated: boolean }>
+    listDir(cwd: string, relPath: string): Promise<DirEntry[]>
   }
   session: {
     create(opts: SessionOptions): Promise<string>

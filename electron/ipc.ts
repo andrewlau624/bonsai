@@ -56,6 +56,37 @@ export function registerIpc(): void {
     return { ...wt, repoId }
   })
 
+  // ---- Git working tree + branch management ----
+  const repoPath = (repoId: string): string => {
+    const repo = store.getRepos().find((r) => r.id === repoId)
+    if (!repo) throw new Error('Unknown repo')
+    return repo.path
+  }
+
+  ipcMain.handle('git:status', (_e, cwd: string) => gitOps.status(cwd))
+  ipcMain.handle('git:stage', (_e, cwd: string, file: string) => gitOps.stageFile(cwd, file))
+  ipcMain.handle('git:unstage', (_e, cwd: string, file: string) => gitOps.unstageFile(cwd, file))
+  ipcMain.handle('git:stageAll', (_e, cwd: string) => gitOps.stageAll(cwd))
+  ipcMain.handle('git:commit', (_e, cwd: string, message: string) => gitOps.commit(cwd, message))
+  ipcMain.handle('git:push', (_e, cwd: string) => gitOps.push(cwd))
+  ipcMain.handle('git:pull', (_e, cwd: string) => gitOps.pull(cwd))
+  ipcMain.handle('git:fetch', (_e, repoId: string) => gitOps.fetch(repoPath(repoId)))
+  ipcMain.handle('git:createBranch', (_e, repoId: string, name: string, from?: string) =>
+    gitOps.createBranch(repoPath(repoId), name, from),
+  )
+  ipcMain.handle('git:deleteBranch', (_e, repoId: string, name: string, force?: boolean) =>
+    gitOps.deleteBranch(repoPath(repoId), name, force),
+  )
+  ipcMain.handle('git:diffFile', (_e, cwd: string, file: string, staged: boolean) =>
+    gitOps.diffFile(cwd, file, staged),
+  )
+  ipcMain.handle('git:readFile', (_e, cwd: string, relPath: string) =>
+    gitOps.readFile(cwd, relPath),
+  )
+  ipcMain.handle('git:listDir', (_e, cwd: string, relPath: string) =>
+    gitOps.listDir(cwd, relPath),
+  )
+
   // ---- Sessions (PTY) ----
   ipcMain.handle('session:create', (event, opts: SessionOptions) =>
     ptyMgr.createSession(opts, event.sender),

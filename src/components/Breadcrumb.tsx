@@ -1,4 +1,5 @@
 import { useApp, branchKey } from '../store'
+import { Icon } from './Icon'
 
 /** Always-visible "where am I" bar for the active tab. */
 export function Breadcrumb() {
@@ -11,13 +12,17 @@ export function Breadcrumb() {
 
   return (
     <div className="breadcrumb">
-      <span className="crumb repo">▣ {repo?.name ?? '?'}</span>
+      <span className="crumb repo">
+        <Icon name="repo" size={13} /> {repo?.name ?? '?'}
+      </span>
       <span className="sep">/</span>
-      <span className="crumb branch">⎇ {tab.branch}</span>
+      <span className="crumb branch">
+        <Icon name="branch" size={13} /> {tab.branch}
+      </span>
       {wt && !wt.primary && <span className="crumb tag">worktree</span>}
       {wt && wt.carriedEnvFiles.length > 0 && (
         <span className="crumb env" title={wt.carriedEnvFiles.join(', ')}>
-          env: {wt.carriedEnvFiles.join(' · ')}
+          env · {wt.carriedEnvFiles.join(' · ')}
         </span>
       )}
       <span className="crumb path" title={tab.cwd}>

@@ -2,7 +2,7 @@ import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs'
 import { simpleGit, SimpleGit } from 'simple-git'
-import type { Branch, Worktree } from '../shared/types'
+import type { Branch, Worktree, GitStatus, FileChange, DirEntry } from '../shared/types'
 import { carryEnvFiles } from './env-vault'
 
 // Worktrees are stored centrally so they don't clutter the repo's parent dir:
@@ -45,7 +45,6 @@ async function listWorktrees(repoPath: string): Promise<RawWorktree[]> {
       if (cur.path) trees.push({ path: cur.path, branch: cur.branch ?? null })
       cur = { path: line.slice('worktree '.length).trim() }
     } else if (line.startsWith('branch ')) {
-      // e.g. "branch refs/heads/feature/x"
       cur.branch = line.slice('branch '.length).replace('refs/heads/', '').trim()
     } else if (line === '') {
       if (cur.path) trees.push({ path: cur.path, branch: cur.branch ?? null })
@@ -71,8 +70,7 @@ export async function listBranches(repoPath: string): Promise<Branch[]> {
 
 /**
  * Ensure a usable worktree exists for `branch`, creating one if needed, then
- * carry the primary checkout's `.env*` files into it. Returns where a terminal
- * for this branch should run.
+ * carry the primary checkout's `.env*` files into it.
  */
 export async function ensureWorktree(
   repoPath: string,
@@ -82,7 +80,6 @@ export async function ensureWorktree(
   const g = git(repoPath)
   const cur = await currentBranch(repoPath)
 
-  // The branch checked out in the primary repo just uses the repo dir itself.
   if (branch === cur) {
     return {
       repoId: '',
@@ -93,7 +90,6 @@ export async function ensureWorktree(
     }
   }
 
-  // Reuse an existing worktree for this branch if git already knows one.
   const existing = (await listWorktrees(repoPath)).find((w) => w.branch === branch)
   let worktreePath = existing?.path
 
@@ -106,4 +102,189 @@ export async function ensureWorktree(
 
   const carriedEnvFiles = carryEnvFiles(repoPath, worktreePath)
   return { repoId: '', branch, path: worktreePath, primary: false, carriedEnvFiles }
+}
+
+// ---------------------------------------------------------------------------
+// Branch management
+// ---------------------------------------------------------------------------
+
+export async function createBranch(repoPath: string, name: string, from?: string): Promise<void> {
+  const clean = name.trim()
+  if (!clean) throw new Error('Branch name is required')
+  // Let git validate the ref name; it rejects spaces, ~, ^, etc.
+  const args = from ? ['branch', clean, from] : ['branch', clean]
+  await git(repoPath).raw(args)
+}
+
+export async function deleteBranch(
+  repoPath: string,
+  name: string,
+  force = false,
+): Promise<void> {
+  // A branch checked out in a worktree can't be deleted until the worktree goes.
+  const wt = (await listWorktrees(repoPath)).find((w) => w.branch === name)
+  if (wt && path.resolve(wt.path) !== path.resolve(repoPath)) {
+    await git(repoPath).raw(['worktree', 'remove', '--force', wt.path])
+  }
+  await git(repoPath).raw(['branch', force ? '-D' : '-d', name])
+}
+
+export async function fetch(repoPath: string): Promise<void> {
+  await git(repoPath).raw(['fetch', '--all', '--prune'])
+}
+
+// ---------------------------------------------------------------------------
+// Working tree: status, staging, commit, sync
+// ---------------------------------------------------------------------------
+
+function classify(index: string, working: string): FileChange['status'] {
+  if (index === '?' && working === '?') return 'untracked'
+  if (index === 'U' || working === 'U') return 'conflicted'
+  const c = index !== ' ' && index !== '?' ? index : working
+  switch (c) {
+    case 'A':
+      return 'added'
+    case 'D':
+      return 'deleted'
+    case 'R':
+      return 'renamed'
+    default:
+      return 'modified'
+  }
+}
+
+export async function status(cwd: string): Promise<GitStatus> {
+  const g = git(cwd)
+  const s = await g.status()
+
+  // Per-file insertion/deletion counts for tracked changes (vs HEAD).
+  const stats = new Map<string, { insertions: number; deletions: number }>()
+  try {
+    const summary = await g.diffSummary(['HEAD'])
+    for (const f of summary.files) {
+      if (!('binary' in f) || !f.binary) {
+        const tf = f as { file: string; insertions: number; deletions: number }
+        stats.set(tf.file, { insertions: tf.insertions, deletions: tf.deletions })
+      }
+    }
+  } catch {
+    /* no commits yet, or detached — counts just stay undefined */
+  }
+
+  const files: FileChange[] = s.files.map((f) => {
+    const st = stats.get(f.path)
+    return {
+      path: f.path,
+      index: f.index,
+      working: f.working_dir,
+      status: classify(f.index, f.working_dir),
+      staged: f.index !== ' ' && f.index !== '?',
+      unstaged: f.working_dir !== ' ',
+      insertions: st?.insertions,
+      deletions: st?.deletions,
+    }
+  })
+
+  return {
+    branch: s.current ?? '(detached)',
+    tracking: s.tracking ?? null,
+    ahead: s.ahead,
+    behind: s.behind,
+    files,
+    clean: files.length === 0,
+  }
+}
+
+export async function stageFile(cwd: string, file: string): Promise<void> {
+  await git(cwd).add([file])
+}
+
+export async function stageAll(cwd: string): Promise<void> {
+  await git(cwd).add(['-A'])
+}
+
+export async function unstageFile(cwd: string, file: string): Promise<void> {
+  try {
+    await git(cwd).raw(['restore', '--staged', '--', file])
+  } catch {
+    // Repo with no commits yet: fall back to plain reset.
+    await git(cwd).raw(['reset', '--', file])
+  }
+}
+
+export async function commit(cwd: string, message: string): Promise<void> {
+  const msg = message.trim()
+  if (!msg) throw new Error('Commit message is required')
+  await git(cwd).commit(msg)
+}
+
+export async function push(cwd: string): Promise<string> {
+  const s = await git(cwd).status()
+  if (!s.tracking) {
+    const r = await git(cwd).raw(['push', '-u', 'origin', s.current ?? 'HEAD'])
+    return r
+  }
+  return git(cwd).raw(['push'])
+}
+
+export async function pull(cwd: string): Promise<string> {
+  return git(cwd).raw(['pull'])
+}
+
+// ---------------------------------------------------------------------------
+// Diff + file/directory inspection
+// ---------------------------------------------------------------------------
+
+export async function diffFile(cwd: string, file: string, staged: boolean): Promise<string> {
+  const g = git(cwd)
+  if (staged) return g.diff(['--cached', '--', file])
+
+  const out = await g.raw(['diff', '--', file])
+  if (out.trim()) return out
+
+  // Untracked (or otherwise no tracked diff): synthesize an all-additions diff
+  // straight from the file so the viewer always shows something useful.
+  try {
+    const abs = path.resolve(cwd, file)
+    const raw = fs.readFileSync(abs, 'utf8')
+    const lines = raw.split('\n')
+    if (lines[lines.length - 1] === '') lines.pop()
+    const header = `diff --git a/${file} b/${file}\nnew file\n--- /dev/null\n+++ b/${file}\n@@ -0,0 +1,${lines.length} @@\n`
+    return header + lines.map((l) => `+${l}`).join('\n')
+  } catch {
+    return out
+  }
+}
+
+const MAX_FILE_BYTES = 2 * 1024 * 1024
+
+export function readFile(cwd: string, relPath: string): { content: string; truncated: boolean } {
+  const abs = path.resolve(cwd, relPath)
+  if (!abs.startsWith(path.resolve(cwd))) throw new Error('Path escapes worktree')
+  const stat = fs.statSync(abs)
+  if (stat.size > MAX_FILE_BYTES) {
+    const fd = fs.openSync(abs, 'r')
+    const buf = Buffer.alloc(MAX_FILE_BYTES)
+    fs.readSync(fd, buf, 0, MAX_FILE_BYTES, 0)
+    fs.closeSync(fd)
+    return { content: buf.toString('utf8'), truncated: true }
+  }
+  return { content: fs.readFileSync(abs, 'utf8'), truncated: false }
+}
+
+export function listDir(cwd: string, relPath: string): DirEntry[] {
+  const abs = path.resolve(cwd, relPath || '.')
+  if (!abs.startsWith(path.resolve(cwd))) throw new Error('Path escapes worktree')
+  const entries = fs.readdirSync(abs, { withFileTypes: true })
+  return entries
+    .filter((e) => e.name !== '.git')
+    .map((e) => ({
+      name: e.name,
+      type: e.isDirectory() ? ('dir' as const) : ('file' as const),
+      path: path.join(relPath || '', e.name),
+    }))
+    .sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
 }

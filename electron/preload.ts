@@ -4,6 +4,8 @@ import type {
   Repo,
   Branch,
   Worktree,
+  GitStatus,
+  DirEntry,
   SessionOptions,
   TabState,
   LayoutState,
@@ -19,6 +21,29 @@ const api: BonsaiApi = {
   worktree: {
     ensure: (repoId, branch) =>
       ipcRenderer.invoke('worktree:ensure', repoId, branch) as Promise<Worktree>,
+  },
+  git: {
+    status: (cwd) => ipcRenderer.invoke('git:status', cwd) as Promise<GitStatus>,
+    stage: (cwd, file) => ipcRenderer.invoke('git:stage', cwd, file) as Promise<void>,
+    unstage: (cwd, file) => ipcRenderer.invoke('git:unstage', cwd, file) as Promise<void>,
+    stageAll: (cwd) => ipcRenderer.invoke('git:stageAll', cwd) as Promise<void>,
+    commit: (cwd, message) => ipcRenderer.invoke('git:commit', cwd, message) as Promise<void>,
+    push: (cwd) => ipcRenderer.invoke('git:push', cwd) as Promise<string>,
+    pull: (cwd) => ipcRenderer.invoke('git:pull', cwd) as Promise<string>,
+    fetch: (repoId) => ipcRenderer.invoke('git:fetch', repoId) as Promise<void>,
+    createBranch: (repoId, name, from) =>
+      ipcRenderer.invoke('git:createBranch', repoId, name, from) as Promise<void>,
+    deleteBranch: (repoId, name, force) =>
+      ipcRenderer.invoke('git:deleteBranch', repoId, name, force) as Promise<void>,
+    diffFile: (cwd, file, staged) =>
+      ipcRenderer.invoke('git:diffFile', cwd, file, staged) as Promise<string>,
+    readFile: (cwd, relPath) =>
+      ipcRenderer.invoke('git:readFile', cwd, relPath) as Promise<{
+        content: string
+        truncated: boolean
+      }>,
+    listDir: (cwd, relPath) =>
+      ipcRenderer.invoke('git:listDir', cwd, relPath) as Promise<DirEntry[]>,
   },
   session: {
     create: (opts: SessionOptions) =>

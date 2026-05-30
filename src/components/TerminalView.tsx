@@ -5,9 +5,9 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import type { TabState } from '../../shared/types'
 
 const THEME = {
-  background: '#0d1117',
-  foreground: '#c9d1d9',
-  cursor: '#58a6ff',
+  background: '#0b0f14',
+  foreground: '#e6edf3',
+  cursor: '#45b884',
   selectionBackground: '#264f78',
   black: '#484f58',
   red: '#ff7b72',
