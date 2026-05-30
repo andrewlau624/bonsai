@@ -69,15 +69,7 @@ export default function App() {
 
   return (
     <div className="app">
-      {collapsed ? (
-        <div className="sidebar-rail">
-          <button className="icon-btn" title="Show sidebar" onClick={toggleSidebar}>
-            <Icon name="panel" size={16} />
-          </button>
-        </div>
-      ) : (
-        <Sidebar />
-      )}
+      {!collapsed && <Sidebar />}
       <main className="workspace">
         <div className="topbar">
           <button
