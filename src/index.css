@@ -2732,3 +2732,42 @@ kbd {
 .sc-discard:hover {
   color: var(--danger);
 }
+
+/* ---------- Localhost preview ---------- */
+.preview {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--bg-elev);
+  border-bottom: var(--border-width) solid var(--border);
+}
+.preview-url {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-2);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  outline: none;
+}
+.preview-url:focus {
+  border-color: var(--accent);
+}
+.preview-web {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
+}

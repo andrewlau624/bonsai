@@ -310,6 +310,8 @@ export interface BonsaiApi {
     openPr(cwd: string, num: number): Promise<void>
     /** Open a single file's diff (+/-) from a PR or commit in its own window. */
     openDiff(cwd: string, kind: 'pr' | 'commit', ref: string, file: string): Promise<void>
+    /** Open a URL (e.g. a local dev server) in a plain browser window. */
+    openBrowser(url: string): Promise<void>
   }
   openExternal(url: string): Promise<void>
   app: {

@@ -88,6 +88,9 @@ interface AppState {
   settingsOpen: boolean
   paletteOpen: boolean
 
+  previewOpen: boolean
+  previewUrl: string
+
   init: () => Promise<void>
   addRepo: () => Promise<void>
   removeRepo: (id: string) => Promise<void>
@@ -140,6 +143,10 @@ interface AppState {
 
   openPalette: () => void
   closePalette: () => void
+  togglePreview: () => void
+  setPreviewUrl: (url: string) => void
+  openPreviewWindow: () => void
+  isWebApp: () => boolean
   toggleSidebar: () => void
   setDrawerWidth: (w: number) => void
   revealActive: () => void
@@ -203,6 +210,9 @@ export const useApp = create<AppState>((set, get) => ({
   config: null,
   settingsOpen: false,
   paletteOpen: false,
+
+  previewOpen: false,
+  previewUrl: 'http://localhost:3000',
 
   init: async () => {
     const config = await window.bonsai.config.get()
@@ -673,6 +683,18 @@ export const useApp = create<AppState>((set, get) => ({
 
   openPalette: () => set({ paletteOpen: true }),
   closePalette: () => set({ paletteOpen: false }),
+
+  togglePreview: () => set((s) => ({ previewOpen: !s.previewOpen })),
+  setPreviewUrl: (url) => set({ previewUrl: url }),
+  openPreviewWindow: () => void window.bonsai.window.openBrowser(get().previewUrl),
+
+  // Heuristic: a repo is a "web app" if it has a dev/start/serve/preview script.
+  isWebApp: () => {
+    const tab = get().activeTab()
+    if (!tab) return false
+    const scripts = get().scriptsByCwd[tab.cwd] ?? []
+    return scripts.some((s) => /^(dev|start|serve|preview)$/.test(s.name))
+  },
 
   toggleSidebar: () => {
     const c = get().config

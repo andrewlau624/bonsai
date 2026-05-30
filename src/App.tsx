@@ -8,6 +8,7 @@ import { Modal } from './components/Modal'
 import { Settings } from './components/Settings'
 import { CommandBar } from './components/CommandBar'
 import { CommandPalette } from './components/CommandPalette'
+import { Preview } from './components/Preview'
 import { Icon } from './components/Icon'
 
 export default function App() {
@@ -28,6 +29,9 @@ export default function App() {
     newTabOnActive,
     revealActive,
     openActiveInEditor,
+    isWebApp,
+    previewOpen,
+    togglePreview,
   } = useApp()
 
   useEffect(() => {
@@ -99,6 +103,15 @@ export default function App() {
               <button className="icon-btn" title="Open in editor" onClick={openActiveInEditor}>
                 <Icon name="external" size={15} />
               </button>
+              {isWebApp() && (
+                <button
+                  className={`icon-btn ${previewOpen ? 'on' : ''}`}
+                  title="Localhost preview"
+                  onClick={togglePreview}
+                >
+                  <Icon name="play" size={15} />
+                </button>
+              )}
             </>
           )}
           <button className="icon-btn" title="Command palette (⌘K)" onClick={openPalette}>
@@ -132,6 +145,7 @@ export default function App() {
             {tabs.map((t) => (
               <TerminalView key={t.id} tab={t} active={t.id === activeTabId} />
             ))}
+            <Preview />
           </div>
           <SourceControl />
         </div>

@@ -79,6 +79,18 @@ export function openPrWindow(cwd: string, num: number): void {
   w.on('closed', () => prWindows.delete(key))
 }
 
+/** Open a plain browser window pointed at a URL (e.g. a local dev server). */
+export function openBrowserWindow(url: string): void {
+  const w = new BrowserWindow({
+    width: 1100,
+    height: 800,
+    backgroundColor: '#ffffff',
+    title: url,
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  })
+  w.loadURL(url)
+}
+
 /** Open a single file's diff (from a PR or commit) in its own window. */
 export function openDiffWindow(cwd: string, kind: string, ref: string, file: string): void {
   const w = new BrowserWindow({
@@ -115,6 +127,7 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      webviewTag: true,
     },
   })
 

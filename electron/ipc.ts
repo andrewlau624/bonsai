@@ -14,7 +14,7 @@ import * as gitOps from './git'
 import * as ptyMgr from './pty'
 import * as store from './store'
 import * as github from './github'
-import { openCodeWindow, openPrWindow, openDiffWindow } from './main'
+import { openCodeWindow, openPrWindow, openDiffWindow, openBrowserWindow } from './main'
 
 export function registerIpc(): void {
   // ---- Repos ----
@@ -135,6 +135,7 @@ export function registerIpc(): void {
   ipcMain.handle('window:openDiff', (_e, cwd: string, kind: string, ref: string, file: string) =>
     openDiffWindow(cwd, kind, ref, file),
   )
+  ipcMain.handle('window:openBrowser', (_e, url: string) => openBrowserWindow(url))
   ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('app:reveal', (_e, p: string) => shell.openPath(p))
   ipcMain.handle('app:openInEditor', async (_e, p: string) => {

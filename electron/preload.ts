@@ -124,6 +124,7 @@ const api: BonsaiApi = {
     openPr: (cwd, num) => ipcRenderer.invoke('window:openPr', cwd, num) as Promise<void>,
     openDiff: (cwd, kind, ref, file) =>
       ipcRenderer.invoke('window:openDiff', cwd, kind, ref, file) as Promise<void>,
+    openBrowser: (url) => ipcRenderer.invoke('window:openBrowser', url) as Promise<void>,
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) as Promise<void>,
   app: {
