@@ -1,5 +1,6 @@
 import { app, Menu, shell, BrowserWindow } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
+import { getMainWindow } from './main'
 
 // Native application menu (the macOS top bar). The Settings item (⌘,) tells the
 // renderer to open the in-app Settings panel.
@@ -62,10 +63,16 @@ export function buildMenu(): void {
         // App reload is intentionally omitted (it would orphan terminals). ⌘R
         // reloads only the active localhost preview.
         {
-          label: 'Reload Preview',
+          label: 'Reload',
           accelerator: 'CmdOrCtrl+R',
-          click: () =>
-            BrowserWindow.getAllWindows()[0]?.webContents.send('menu:reload-preview'),
+          click: () => {
+            const focused = BrowserWindow.getFocusedWindow()
+            if (!focused) return
+            // Main app: reload only the active in-app preview. Any pop-out
+            // window (browser/code/PR/diff): reload that window directly.
+            if (focused === getMainWindow()) focused.webContents.send('menu:reload-preview')
+            else focused.webContents.reload()
+          },
         },
         { role: 'toggleDevTools' as const },
         { type: 'separator' as const },

@@ -149,24 +149,35 @@ function createWindow(): void {
   })
 }
 
-// Give webviews (the localhost previews) a real right-click menu.
+export function getMainWindow(): BrowserWindow | null {
+  return win
+}
+
+// Right-click menu for previews (webviews) and the pop-out windows. The main
+// app UI gets edit actions only (no navigation/reload of the app itself).
 app.on('web-contents-created', (_e, contents) => {
-  if (contents.getType() !== 'webview') return
   contents.on('context-menu', (_ev, params) => {
     const can = params.editFlags
-    const menu = Menu.buildFromTemplate([
-      { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
-      { label: 'Forward', enabled: contents.canGoForward(), click: () => contents.goForward() },
-      { label: 'Reload', click: () => contents.reload() },
-      { type: 'separator' },
+    const isWebview = contents.getType() === 'webview'
+    const isMainApp = !isWebview && BrowserWindow.fromWebContents(contents) === win
+    const items: Electron.MenuItemConstructorOptions[] = []
+    if (!isMainApp) {
+      items.push(
+        { label: 'Back', enabled: contents.canGoBack(), click: () => contents.goBack() },
+        { label: 'Forward', enabled: contents.canGoForward(), click: () => contents.goForward() },
+        { label: 'Reload', click: () => contents.reload() },
+        { type: 'separator' },
+      )
+    }
+    items.push(
       { role: 'cut', enabled: can.canCut },
       { role: 'copy', enabled: can.canCopy },
       { role: 'paste', enabled: can.canPaste },
       { role: 'selectAll' },
       { type: 'separator' },
       { label: 'Inspect element', click: () => contents.inspectElement(params.x, params.y) },
-    ])
-    menu.popup()
+    )
+    Menu.buildFromTemplate(items).popup()
   })
 })
 
