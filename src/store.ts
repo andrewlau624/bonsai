@@ -302,6 +302,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (existing && !forceNewTab) {
       set((s) => ({
         activeTabId: existing.id,
+        activePane: 'terminal',
         expandedBranches: new Set(s.expandedBranches).add(key),
       }))
       get().persist()
@@ -332,6 +333,7 @@ export const useApp = create<AppState>((set, get) => ({
         worktrees: { ...s.worktrees, [key]: worktree },
         tabs: [...s.tabs, tab],
         activeTabId: tab.id,
+        activePane: 'terminal',
         expandedBranches: new Set(s.expandedBranches).add(key),
         loading,
       }
@@ -350,7 +352,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setActiveTab: (id) => {
-    set({ activeTabId: id, inspector: { kind: 'list' } })
+    set({ activeTabId: id, inspector: { kind: 'list' }, activePane: 'terminal' })
     get().persist()
     void get().refreshStatus()
     void get().loadScripts()
