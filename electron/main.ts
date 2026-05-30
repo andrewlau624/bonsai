@@ -138,6 +138,14 @@ function createWindow(): void {
     win.loadFile(path.join(DIST_RENDERER, 'index.html'))
   }
 
+  // Block accidental reload (⌘R / ⌘⇧R / F5) — reloading the renderer would
+  // orphan running PTYs and their child processes (dev servers / ports).
+  win.webContents.on('before-input-event', (event, input) => {
+    const key = input.key?.toLowerCase()
+    const reload = (input.meta || input.control) && key === 'r'
+    if (reload || key === 'f5') event.preventDefault()
+  })
+
   win.on('closed', () => {
     win = null
   })
@@ -159,3 +167,10 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => killAll())
+app.on('will-quit', () => killAll())
+// Last-resort cleanup if the main process itself is told to exit.
+process.on('exit', () => killAll())
+process.on('SIGTERM', () => {
+  killAll()
+  app.quit()
+})

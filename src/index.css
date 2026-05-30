@@ -2948,3 +2948,39 @@ kbd {
   margin-top: 4px;
   color: var(--text-dim);
 }
+
+/* ---------- Globe ports button (top bar) ---------- */
+.ports-dd-globe {
+  position: relative;
+}
+.globe-btn {
+  position: relative;
+}
+.globe-btn.has-ports {
+  color: var(--accent);
+}
+.port-dot {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+.ports-menu-right {
+  left: auto;
+  right: 0;
+}
+.ports-none {
+  padding: 8px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-style: italic;
+}

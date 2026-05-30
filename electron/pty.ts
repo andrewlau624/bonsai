@@ -60,10 +60,21 @@ export function resizeSession(id: string, cols: number, rows: number): void {
 export function killSession(id: string): void {
   const s = sessions.get(id)
   if (!s) return
+  const pid = s.proc.pid
   try {
     s.proc.kill()
   } catch {
     /* already gone */
+  }
+  // Also kill the whole process group so child processes (dev servers holding
+  // ports, etc.) don't get orphaned. node-pty makes the shell a session leader,
+  // so the negative pid targets the group.
+  if (process.platform !== 'win32' && pid) {
+    try {
+      process.kill(-pid, 'SIGKILL')
+    } catch {
+      /* group already gone */
+    }
   }
   sessions.delete(id)
 }

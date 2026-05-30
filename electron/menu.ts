@@ -59,8 +59,7 @@ export function buildMenu(): void {
     {
       label: 'View',
       submenu: [
-        { role: 'reload' as const },
-        { role: 'forceReload' as const },
+        // Reload intentionally omitted — it would orphan running terminals.
         { role: 'toggleDevTools' as const },
         { type: 'separator' as const },
         { role: 'resetZoom' as const },

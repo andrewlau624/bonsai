@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useApp } from './store'
 import { Sidebar } from './components/Sidebar'
 import { Breadcrumb } from './components/Breadcrumb'
@@ -9,28 +9,8 @@ import { Settings } from './components/Settings'
 import { CommandBar } from './components/CommandBar'
 import { CommandPalette } from './components/CommandPalette'
 import { Preview } from './components/Preview'
+import { PortsMenu, previewLabel } from './components/PortsMenu'
 import { Icon } from './components/Icon'
-
-// Friendly names for well-known local dev ports.
-const PORT_NAMES: Record<string, string> = {
-  '54323': 'Supabase Studio',
-  '54321': 'Supabase API',
-  '54324': 'Inbucket',
-  '5432': 'Postgres',
-  '6006': 'Storybook',
-  '8025': 'Mailpit',
-  '5173': 'Vite',
-  '3000': 'App',
-  '8080': 'Web',
-}
-function previewLabel(url: string): string {
-  try {
-    const u = new URL(url)
-    return PORT_NAMES[u.port] ?? (u.port ? `:${u.port}` : u.hostname)
-  } catch {
-    return 'Preview'
-  }
-}
 
 export default function App() {
   const {
@@ -51,14 +31,11 @@ export default function App() {
     revealActive,
     openActiveInEditor,
     isWebApp,
-    togglePreview,
     previewTabs,
     activePane,
     setPaneActive,
     closePreviewTab,
-    addPreviewTab,
   } = useApp()
-  const [portsOpen, setPortsOpen] = useState(false)
 
   useEffect(() => {
     void init()
@@ -129,15 +106,7 @@ export default function App() {
               <button className="icon-btn" title="Open in editor" onClick={openActiveInEditor}>
                 <Icon name="external" size={15} />
               </button>
-              {isWebApp() && (
-                <button
-                  className={`icon-btn ${activePane !== 'terminal' ? 'on' : ''}`}
-                  title="Localhost preview"
-                  onClick={togglePreview}
-                >
-                  <Icon name="globe" size={15} />
-                </button>
-              )}
+              {(isWebApp() || previewTabs.length > 0) && <PortsMenu variant="globe" />}
             </>
           )}
           <button className="icon-btn" title="Command palette (⌘K)" onClick={openPalette}>
@@ -184,43 +153,7 @@ export default function App() {
                     </span>
                   </button>
                 ))}
-                <div className="ports-dd">
-                  <button
-                    className="pane-ports-btn"
-                    title="Open ports"
-                    onClick={() => setPortsOpen((o) => !o)}
-                  >
-                    <Icon name="chevron-down" size={13} />
-                  </button>
-                  {portsOpen && (
-                    <div className="ports-menu" onMouseLeave={() => setPortsOpen(false)}>
-                      <div className="ports-menu-title">Open ports</div>
-                      {previewTabs.map((pt) => (
-                        <button
-                          key={pt.id}
-                          className={`ports-item ${activePane === pt.id ? 'active' : ''}`}
-                          onClick={() => {
-                            setPaneActive(pt.id)
-                            setPortsOpen(false)
-                          }}
-                        >
-                          <Icon name="globe" size={13} />
-                          <span className="ports-name">{previewLabel(pt.url)}</span>
-                          <span className="ports-url ellipsis">{pt.url}</span>
-                        </button>
-                      ))}
-                      <button
-                        className="ports-item ports-add"
-                        onClick={() => {
-                          addPreviewTab()
-                          setPortsOpen(false)
-                        }}
-                      >
-                        <Icon name="plus" size={13} /> Add a port…
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <PortsMenu variant="chevron" />
               </div>
             )}
             <div className="pane-content">
