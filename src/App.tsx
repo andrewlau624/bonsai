@@ -12,6 +12,7 @@ import { BranchPicker } from './components/BranchPicker'
 import { Preview } from './components/Preview'
 import { PortsMenu, previewLabel } from './components/PortsMenu'
 import { Icon } from './components/Icon'
+import { Logo } from './components/Logo'
 
 export default function App() {
   const {
@@ -176,7 +177,7 @@ export default function App() {
               >
                 {tabs.length === 0 && (
                   <div className="placeholder">
-                    <Icon name="leaf" size={40} className="placeholder-mark" />
+                    <Logo size={44} className="placeholder-mark" />
                     <h2>Bonsai</h2>
                     <p>Add a repo, expand it, and pick a branch to open a terminal.</p>
                     <p className="dim">

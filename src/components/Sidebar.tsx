@@ -1,6 +1,7 @@
 import { useApp, branchKey } from '../store'
 import type { Repo, Branch } from '../../shared/types'
 import { Icon } from './Icon'
+import { Logo } from './Logo'
 
 function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
   const {
@@ -169,7 +170,7 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="brand">
-          <Icon name="leaf" size={18} className="brand-mark" />
+          <Logo size={18} className="brand-mark" />
           <span className="brand-name">Bonsai</span>
         </div>
         <div className="header-actions">
