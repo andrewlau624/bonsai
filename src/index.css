@@ -2821,3 +2821,130 @@ kbd {
   border: none;
   background: #fff;
 }
+
+/* ---------- Command-bar task groups (inline, collapse sideways) ---------- */
+.cmd-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.cmd-group-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  background: var(--bg-3);
+  border: var(--border-width) solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cmd-group-head:hover {
+  border-color: var(--accent);
+}
+.cmd-group-head .chevron {
+  transition: transform 0.14s ease;
+  color: var(--text-faint);
+}
+.cmd-group-head.open .chevron {
+  transform: rotate(90deg);
+}
+.cmd-group-n {
+  font-size: 9.5px;
+  background: var(--bg);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 0 5px;
+}
+.task-chip {
+  max-width: 200px;
+  border-style: dashed !important;
+}
+.cmd-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex: none;
+  margin: 0 4px;
+}
+
+/* ---------- Ports dropdown ---------- */
+.ports-dd {
+  position: relative;
+  flex: none;
+}
+.pane-ports-btn {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 6px 6px 8px;
+}
+.pane-ports-btn:hover {
+  color: var(--text);
+}
+.ports-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 30;
+  min-width: 240px;
+  background: var(--bg-elev);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 5px;
+}
+.ports-menu-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  padding: 4px 8px;
+}
+.ports-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12.5px;
+}
+.ports-item:hover {
+  background: var(--bg-2);
+}
+.ports-item.active {
+  color: var(--accent);
+}
+.ports-item svg {
+  flex: none;
+  color: var(--text-dim);
+}
+.ports-name {
+  font-weight: 600;
+  flex: none;
+}
+.ports-url {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  min-width: 0;
+}
+.ports-add {
+  border-top: var(--border-width) solid var(--border-soft);
+  margin-top: 4px;
+  color: var(--text-dim);
+}

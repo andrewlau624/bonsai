@@ -100,6 +100,8 @@ export function registerIpc(): void {
   ipcMain.handle('git:log', (_e, cwd: string) => gitOps.log(cwd))
   ipcMain.handle('git:discard', (_e, cwd: string, file: string) => gitOps.discardFile(cwd, file))
   ipcMain.handle('git:scripts', (_e, cwd: string) => gitOps.packageScripts(cwd))
+  ipcMain.handle('git:makeTargets', (_e, cwd: string) => gitOps.makeTargets(cwd))
+  ipcMain.handle('git:runnables', (_e, cwd: string) => gitOps.detectRunnables(cwd))
 
   // ---- Sessions (PTY) ----
   ipcMain.handle('session:create', (event, opts: SessionOptions) =>

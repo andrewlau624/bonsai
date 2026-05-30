@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { useApp } from '../store'
 import { Icon } from './Icon'
-import type { SavedCommand } from '../../shared/types'
+import type { SavedCommand, RunnableGroup } from '../../shared/types'
+
+const GROUP_ICON: Record<RunnableGroup['kind'], Parameters<typeof Icon>[0]['name']> = {
+  npm: 'play',
+  make: 'play',
+  md: 'file',
+}
 
 function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[]; onClose: () => void }) {
   const { saveCommands } = useApp()
@@ -17,7 +23,6 @@ function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[
     setAction('run')
     setEditingId(null)
   }
-
   const commit = () => {
     const commands = body.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => l.trim())
     if (!name.trim() || commands.length === 0) return
@@ -28,14 +33,12 @@ function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[
     void saveCommands(repoId, next)
     reset()
   }
-
   const remove = (id: string) => {
     const next = items.filter((it) => it.id !== id)
     setItems(next)
     void saveCommands(repoId, next)
     if (editingId === id) reset()
   }
-
   const edit = (it: SavedCommand) => {
     setEditingId(it.id)
     setName(it.name)
@@ -54,7 +57,6 @@ function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[
           Bookmark a command, a sequence, or a reusable prompt. <strong>Run</strong> executes it in
           the active terminal; <strong>Paste</strong> drops it at the prompt to edit first.
         </p>
-
         <div className="cmd-list">
           {items.length === 0 && <div className="set-empty">No saved commands yet.</div>}
           {items.map((it) => (
@@ -73,7 +75,6 @@ function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[
             </div>
           ))}
         </div>
-
         <div className="cmd-form">
           <input
             className="modal-input"
@@ -112,32 +113,60 @@ function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[
   )
 }
 
+function groupLabel(g: RunnableGroup): string {
+  if (g.kind === 'npm') return 'npm'
+  if (g.kind === 'make') return 'make'
+  return g.source.split('/').pop() ?? g.source
+}
+
+function TaskGroup({ group }: { group: RunnableGroup }) {
+  const { runCommandText } = useApp()
+  const [open, setOpen] = useState(group.kind !== 'md') // npm/make open, md collapsed
+  return (
+    <div className="cmd-group">
+      <button
+        className={`cmd-group-head ${open ? 'open' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        title={`${group.source} — ${group.items.length} commands`}
+      >
+        <Icon name={GROUP_ICON[group.kind]} size={11} />
+        {groupLabel(group)}
+        <span className="cmd-group-n">{group.items.length}</span>
+        <Icon name="chevron" size={11} className={`chevron ${open ? 'open' : ''}`} />
+      </button>
+      {open &&
+        group.items.map((it, i) => (
+          <button
+            key={i}
+            className="cmd-chip task-chip"
+            title={it.command}
+            onClick={() => runCommandText(it.command)}
+          >
+            <span className="ellipsis">{it.label}</span>
+          </button>
+        ))}
+    </div>
+  )
+}
+
 export function CommandBar() {
-  const { activeTab, commandsByRepo, scriptsByCwd, runSaved, runScript } = useApp()
+  const { activeTab, commandsByRepo, runnablesByCwd, runSaved } = useApp()
   const [editing, setEditing] = useState(false)
   const tab = activeTab()
   if (!tab) return null
   const list = commandsByRepo[tab.repoId] ?? []
-  const scripts = scriptsByCwd[tab.cwd] ?? []
+  const groups = runnablesByCwd[tab.cwd] ?? []
 
   return (
     <div className="command-bar">
-      <Icon name="terminal" size={13} className="cmd-bar-icon" />
       <div className="cmd-chips">
-        {list.length === 0 && scripts.length === 0 && (
-          <span className="cmd-empty">No saved commands — bookmark one →</span>
-        )}
-        {scripts.map((s) => (
-          <button
-            key={`script-${s.name}`}
-            className="cmd-chip script"
-            title={`npm run ${s.name}\n${s.command}`}
-            onClick={() => runScript(s.name)}
-          >
-            <Icon name="play" size={11} />
-            {s.name}
-          </button>
+        {groups.map((g) => (
+          <TaskGroup key={g.source} group={g} />
         ))}
+        {groups.length > 0 && list.length > 0 && <span className="cmd-divider" />}
+        {groups.length === 0 && list.length === 0 && (
+          <span className="cmd-empty">No tasks or saved commands yet</span>
+        )}
         {list.map((c) => (
           <button
             key={c.id}

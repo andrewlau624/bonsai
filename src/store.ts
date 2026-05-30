@@ -14,6 +14,7 @@ import type {
   PrComment,
   Commit,
   GhAccount,
+  RunnableGroup,
 } from '../shared/types'
 import { applyTheme } from './themes'
 import { modeValue } from './modes'
@@ -26,6 +27,7 @@ export interface PreviewTab {
   id: string
   url: string
 }
+
 
 const branchKey = (repoId: string, branch: string) => `${repoId}::${branch}`
 
@@ -76,7 +78,7 @@ interface AppState {
 
   sessionByTab: Record<string, string>
   commandsByRepo: Record<string, SavedCommand[]>
-  scriptsByCwd: Record<string, Array<{ name: string; command: string }>>
+  runnablesByCwd: Record<string, RunnableGroup[]>
 
   prStatus: PrStatus | null
   prDetail: PullRequestDetail | null
@@ -128,8 +130,8 @@ interface AppState {
   registerSession: (tabId: string, sessionId: string) => void
   unregisterSession: (tabId: string) => void
   runSaved: (cmd: SavedCommand) => void
-  runScript: (name: string) => void
-  loadScripts: () => Promise<void>
+  runCommandText: (command: string) => void
+  loadRunnables: () => Promise<void>
   loadCommands: (repoId: string) => Promise<void>
   saveCommands: (repoId: string, list: SavedCommand[]) => Promise<void>
 
@@ -203,7 +205,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   sessionByTab: {},
   commandsByRepo: {},
-  scriptsByCwd: {},
+  runnablesByCwd: {},
 
   prStatus: null,
   prDetail: null,
@@ -246,7 +248,7 @@ export const useApp = create<AppState>((set, get) => ({
     }
     for (const r of repos) void get().loadCommands(r.id)
     void get().refreshStatus()
-    void get().loadScripts()
+    void get().loadRunnables()
   },
 
   addRepo: async () => {
@@ -307,7 +309,7 @@ export const useApp = create<AppState>((set, get) => ({
       }))
       get().persist()
       void get().refreshStatus()
-    void get().loadScripts()
+    void get().loadRunnables()
       return
     }
 
@@ -340,7 +342,7 @@ export const useApp = create<AppState>((set, get) => ({
     })
     get().persist()
     void get().refreshStatus()
-    void get().loadScripts()
+    void get().loadRunnables()
   },
 
   toggleBranch: (repoId, branch) => {
@@ -355,7 +357,7 @@ export const useApp = create<AppState>((set, get) => ({
     set({ activeTabId: id, inspector: { kind: 'list' }, activePane: 'terminal' })
     get().persist()
     void get().refreshStatus()
-    void get().loadScripts()
+    void get().loadRunnables()
   },
 
   closeTab: (id) => {
@@ -367,7 +369,7 @@ export const useApp = create<AppState>((set, get) => ({
     })
     get().persist()
     void get().refreshStatus()
-    void get().loadScripts()
+    void get().loadRunnables()
   },
 
   persist: () => {
@@ -532,19 +534,19 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
-  runScript: (name) => {
+  runCommandText: (command) => {
     const { activeTabId, sessionByTab } = get()
     if (!activeTabId) return
     const sid = sessionByTab[activeTabId]
-    if (sid) window.bonsai.session.write(sid, `npm run ${name}\n`)
+    if (sid) window.bonsai.session.write(sid, `${command}\n`)
   },
 
-  loadScripts: async () => {
+  loadRunnables: async () => {
     const tab = get().activeTab()
     if (!tab) return
     try {
-      const scripts = await window.bonsai.git.scripts(tab.cwd)
-      set((s) => ({ scriptsByCwd: { ...s.scriptsByCwd, [tab.cwd]: scripts } }))
+      const groups = await window.bonsai.git.runnables(tab.cwd)
+      set((s) => ({ runnablesByCwd: { ...s.runnablesByCwd, [tab.cwd]: groups } }))
     } catch {
       /* ignore */
     }
@@ -764,8 +766,8 @@ export const useApp = create<AppState>((set, get) => ({
     if (get().previewDetected) return true
     const tab = get().activeTab()
     if (!tab) return false
-    const scripts = get().scriptsByCwd[tab.cwd] ?? []
-    return scripts.some((s) => /^(dev|start|serve|preview)$/.test(s.name))
+    const groups = get().runnablesByCwd[tab.cwd] ?? []
+    return groups.some((g) => g.items.some((i) => /\b(dev|start|serve|preview)\b/.test(i.label)))
   },
 
   toggleSidebar: () => {

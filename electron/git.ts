@@ -238,6 +238,115 @@ export function packageScripts(cwd: string): Array<{ name: string; command: stri
   }
 }
 
+export interface RunnableGroup {
+  source: string
+  kind: 'npm' | 'make' | 'md'
+  items: Array<{ label: string; command: string }>
+}
+
+const CMD_PREFIXES =
+  /^(npm|npx|pnpm|yarn|bun|deno|node|make|git|docker|docker-compose|supabase|python3?|pip3?|cargo|go|rails|rake|bundle|flask|django|php|composer|kubectl|terraform|vercel|netlify|fly|wrangler|\.\/|sh |bash )/
+
+/** Extract shell commands from fenced code blocks in markdown. */
+function commandsFromMarkdown(md: string): string[] {
+  const out: string[] = []
+  const fence = /```([a-zA-Z]*)\n([\s\S]*?)```/g
+  let m: RegExpExecArray | null
+  while ((m = fence.exec(md))) {
+    const lang = m[1].toLowerCase()
+    const shellish = ['', 'sh', 'bash', 'shell', 'zsh', 'console', 'shellsession'].includes(lang)
+    if (!shellish) continue
+    for (let line of m[2].split('\n')) {
+      line = line.trim().replace(/^[$#]\s+/, '')
+      if (!line || line.startsWith('#') || line.length > 200) continue
+      // For unlabelled blocks, only keep lines that clearly look like commands.
+      if (lang === '' && !CMD_PREFIXES.test(line)) continue
+      out.push(line)
+    }
+  }
+  return [...new Set(out)]
+}
+
+/** Everything runnable in the worktree: npm scripts, make targets, and shell
+ * commands pulled from README/markdown files — grouped by source. */
+export function detectRunnables(cwd: string): RunnableGroup[] {
+  const groups: RunnableGroup[] = []
+
+  const npm = packageScripts(cwd)
+  if (npm.length) {
+    groups.push({
+      source: 'package.json',
+      kind: 'npm',
+      items: npm.map((s) => ({ label: s.name, command: `npm run ${s.name}` })),
+    })
+  }
+
+  const make = makeTargets(cwd)
+  if (make.length) {
+    groups.push({
+      source: 'Makefile',
+      kind: 'make',
+      items: make.map((t) => ({ label: t, command: `make ${t}` })),
+    })
+  }
+
+  // Markdown: root *.md plus one level of docs/, capped.
+  const mdFiles: string[] = []
+  try {
+    for (const e of fs.readdirSync(cwd, { withFileTypes: true })) {
+      if (e.isFile() && /\.md$/i.test(e.name)) mdFiles.push(e.name)
+      else if (e.isDirectory() && /^(docs?|documentation)$/i.test(e.name)) {
+        try {
+          for (const f of fs.readdirSync(path.join(cwd, e.name)))
+            if (/\.md$/i.test(f)) mdFiles.push(path.join(e.name, f))
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  for (const rel of mdFiles.slice(0, 15)) {
+    let txt: string
+    try {
+      txt = fs.readFileSync(path.join(cwd, rel), 'utf8')
+    } catch {
+      continue
+    }
+    const cmds = commandsFromMarkdown(txt)
+    if (cmds.length) {
+      groups.push({
+        source: rel,
+        kind: 'md',
+        items: cmds.map((c) => ({ label: c, command: c })),
+      })
+    }
+  }
+
+  return groups
+}
+
+/** Makefile targets in the worktree (for `make <target>`). */
+export function makeTargets(cwd: string): string[] {
+  for (const file of ['Makefile', 'makefile', 'GNUmakefile']) {
+    let txt: string
+    try {
+      txt = fs.readFileSync(path.join(cwd, file), 'utf8')
+    } catch {
+      continue
+    }
+    const targets: string[] = []
+    for (const line of txt.split('\n')) {
+      // A target line: name: ... at column 0, not a variable assignment.
+      const m = /^([a-zA-Z0-9][a-zA-Z0-9_.\-/]*)\s*:(?!=)/.exec(line)
+      if (m && m[1] !== '.PHONY' && !m[1].includes('/')) targets.push(m[1])
+    }
+    return [...new Set(targets)]
+  }
+  return []
+}
+
 export async function commit(cwd: string, message: string): Promise<void> {
   const msg = message.trim()
   if (!msg) throw new Error('Commit message is required')

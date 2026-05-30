@@ -72,6 +72,12 @@ export interface Commit {
   relative: string
 }
 
+export interface RunnableGroup {
+  source: string
+  kind: 'npm' | 'make' | 'md'
+  items: Array<{ label: string; command: string }>
+}
+
 /** A persisted terminal tab. */
 export interface TabState {
   id: string
@@ -252,6 +258,8 @@ export interface BonsaiApi {
     listDir(cwd: string, relPath: string): Promise<DirEntry[]>
     log(cwd: string): Promise<Commit[]>
     scripts(cwd: string): Promise<Array<{ name: string; command: string }>>
+    makeTargets(cwd: string): Promise<string[]>
+    runnables(cwd: string): Promise<RunnableGroup[]>
   }
   session: {
     create(opts: SessionOptions): Promise<string>

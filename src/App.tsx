@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from './store'
 import { Sidebar } from './components/Sidebar'
 import { Breadcrumb } from './components/Breadcrumb'
@@ -56,7 +56,9 @@ export default function App() {
     activePane,
     setPaneActive,
     closePreviewTab,
+    addPreviewTab,
   } = useApp()
+  const [portsOpen, setPortsOpen] = useState(false)
 
   useEffect(() => {
     void init()
@@ -182,6 +184,43 @@ export default function App() {
                     </span>
                   </button>
                 ))}
+                <div className="ports-dd">
+                  <button
+                    className="pane-ports-btn"
+                    title="Open ports"
+                    onClick={() => setPortsOpen((o) => !o)}
+                  >
+                    <Icon name="chevron-down" size={13} />
+                  </button>
+                  {portsOpen && (
+                    <div className="ports-menu" onMouseLeave={() => setPortsOpen(false)}>
+                      <div className="ports-menu-title">Open ports</div>
+                      {previewTabs.map((pt) => (
+                        <button
+                          key={pt.id}
+                          className={`ports-item ${activePane === pt.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setPaneActive(pt.id)
+                            setPortsOpen(false)
+                          }}
+                        >
+                          <Icon name="globe" size={13} />
+                          <span className="ports-name">{previewLabel(pt.url)}</span>
+                          <span className="ports-url ellipsis">{pt.url}</span>
+                        </button>
+                      ))}
+                      <button
+                        className="ports-item ports-add"
+                        onClick={() => {
+                          addPreviewTab()
+                          setPortsOpen(false)
+                        }}
+                      >
+                        <Icon name="plus" size={13} /> Add a port…
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div className="pane-content">

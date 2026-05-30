@@ -53,6 +53,9 @@ const api: BonsaiApi = {
     discard: (cwd, file) => ipcRenderer.invoke('git:discard', cwd, file) as Promise<void>,
     scripts: (cwd) =>
       ipcRenderer.invoke('git:scripts', cwd) as Promise<Array<{ name: string; command: string }>>,
+    makeTargets: (cwd) => ipcRenderer.invoke('git:makeTargets', cwd) as Promise<string[]>,
+    runnables: (cwd) =>
+      ipcRenderer.invoke('git:runnables', cwd) as Promise<import('../shared/types').RunnableGroup[]>,
   },
   session: {
     create: (opts: SessionOptions) =>
