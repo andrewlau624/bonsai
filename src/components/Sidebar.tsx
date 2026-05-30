@@ -1,4 +1,4 @@
-import { useApp, branchKey } from '../store'
+import { useApp, branchKey, tabDisplayName, tabBusy } from '../store'
 import type { Repo, Branch } from '../../shared/types'
 import { Icon } from './Icon'
 import { Logo } from './Logo'
@@ -14,6 +14,7 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
     toggleBranch,
     setActiveTab,
     requestDeleteBranch,
+    processByTab,
   } = useApp()
   const key = branchKey(repo.id, branch.name)
   const branchTabs = tabs.filter((t) => t.repoId === repo.id && t.branch === branch.name)
@@ -73,16 +74,28 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
       </div>
 
       {expanded &&
-        branchTabs.map((t, i) => (
-          <button
-            key={t.id}
-            className={`row tab-row ${activeTabId === t.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(t.id)}
-          >
-            <Icon name="terminal" size={12} className="i-term" />
-            <span className="ellipsis">Terminal {i + 1}</span>
-          </button>
-        ))}
+        branchTabs.map((t, i) => {
+          const proc = processByTab[t.id]
+          const busy = tabBusy(proc)
+          const live = tabDisplayName(t, proc)
+          // Fall back to "Terminal N" when the tab is just an idle shell.
+          const label = live === branch.name ? `Terminal ${i + 1}` : live
+          return (
+            <button
+              key={t.id}
+              className={`row tab-row ${activeTabId === t.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(t.id)}
+              title={busy ? `${proc} running` : undefined}
+            >
+              {busy ? (
+                <span className="tab-busy" />
+              ) : (
+                <Icon name="terminal" size={12} className="i-term" />
+              )}
+              <span className="ellipsis">{label}</span>
+            </button>
+          )
+        })}
     </div>
   )
 }

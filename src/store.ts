@@ -31,6 +31,25 @@ export interface PreviewTab {
 
 const branchKey = (repoId: string, branch: string) => `${repoId}::${branch}`
 
+// Foreground-process helpers. A tab is "busy" when its PTY's foreground process
+// is a real program rather than the idle login shell.
+const SHELLS = new Set([
+  'zsh', 'bash', 'sh', 'fish', 'dash', 'ksh', 'tcsh', 'csh', 'pwsh', 'powershell', 'login', 'nu',
+])
+export function isShellProcess(name?: string): boolean {
+  if (!name) return false
+  const base = name.replace(/^-/, '').split('/').pop()!.toLowerCase()
+  return SHELLS.has(base)
+}
+export function tabBusy(proc?: string): boolean {
+  return !!proc && !isShellProcess(proc)
+}
+/** Best display name for a tab: live program title → process name → branch. */
+export function tabDisplayName(tab: TabState, proc?: string): string {
+  if (proc) return tabBusy(proc) ? tab.liveTitle || proc : tab.branch
+  return tab.liveTitle || tab.branch
+}
+
 type InspectorView =
   | { kind: 'list' }
   | { kind: 'diff'; file: string; staged: boolean; diff: string }
@@ -77,6 +96,7 @@ interface AppState {
   filesEntries: DirEntry[]
 
   sessionByTab: Record<string, string>
+  processByTab: Record<string, string>
   commandsByRepo: Record<string, SavedCommand[]>
   runnablesByCwd: Record<string, RunnableGroup[]>
   usageByRepo: Record<string, Record<string, number>>
@@ -112,6 +132,10 @@ interface AppState {
   toggleBranch: (repoId: string, branch: string) => void
   setActiveTab: (id: string) => void
   closeTab: (id: string) => void
+  setTabTitle: (id: string, title: string) => void
+  setTabProcess: (id: string, name: string) => void
+  togglePinTab: (id: string) => void
+  reorderTabs: (draggedId: string, targetId: string) => void
   persist: () => void
 
   activeTab: () => TabState | undefined
@@ -213,6 +237,7 @@ export const useApp = create<AppState>((set, get) => ({
   filesEntries: [],
 
   sessionByTab: {},
+  processByTab: {},
   commandsByRepo: {},
   runnablesByCwd: {},
   usageByRepo: {},
@@ -390,15 +415,66 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   closeTab: (id) => {
+    // Guard against losing work: confirm if a real program is running in the tab.
+    const proc = get().processByTab[id]
+    if (tabBusy(proc) && !confirm(`"${proc}" is still running in this tab. Close it anyway?`)) {
+      return
+    }
     window.bonsai.session.kill(id)
     set((s) => {
       const tabs = s.tabs.filter((t) => t.id !== id)
       const activeTabId = s.activeTabId === id ? (tabs[tabs.length - 1]?.id ?? null) : s.activeTabId
-      return { tabs, activeTabId }
+      const processByTab = { ...s.processByTab }
+      delete processByTab[id]
+      return { tabs, activeTabId, processByTab }
     })
     get().persist()
     void get().refreshStatus()
     void get().loadRunnables()
+  },
+
+  // Live program title (OSC) → tab name, falling back to the branch in the UI.
+  // Runtime-only: not persisted (re-derived from the running program each launch).
+  setTabTitle: (id, title) => {
+    const clean = title.replace(/\s+/g, ' ').trim().slice(0, 60)
+    const tab = get().tabs.find((t) => t.id === id)
+    if (!tab || tab.liveTitle === (clean || undefined)) return
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, liveTitle: clean || undefined } : t)),
+    }))
+  },
+
+  // Foreground process name for a tab's PTY (drives titles + busy indicator).
+  setTabProcess: (id, name) => {
+    if (get().processByTab[id] === name) return
+    set((s) => ({ processByTab: { ...s.processByTab, [id]: name } }))
+  },
+
+  togglePinTab: (id) => {
+    set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, pinned: !t.pinned } : t)) }))
+    get().persist()
+  },
+
+  // Move the dragged tab to the target tab's slot — but only within its own
+  // group (same repo + pin state); cross-group drags are ignored.
+  reorderTabs: (draggedId, targetId) => {
+    if (draggedId === targetId) return
+    let changed = false
+    set((s) => {
+      const tabs = [...s.tabs]
+      const from = tabs.findIndex((t) => t.id === draggedId)
+      const to = tabs.findIndex((t) => t.id === targetId)
+      if (from === -1 || to === -1) return s
+      const a = tabs[from]
+      const b = tabs[to]
+      // Only reorder among terminals of the same branch.
+      if (a.repoId !== b.repoId || a.branch !== b.branch || !!a.pinned !== !!b.pinned) return s
+      const [moved] = tabs.splice(from, 1)
+      tabs.splice(to, 0, moved)
+      changed = true
+      return { tabs }
+    })
+    if (changed) get().persist()
   },
 
   persist: () => {
@@ -545,7 +621,9 @@ export const useApp = create<AppState>((set, get) => ({
     set((s) => {
       const next = { ...s.sessionByTab }
       delete next[tabId]
-      return { sessionByTab: next }
+      const processByTab = { ...s.processByTab }
+      delete processByTab[tabId]
+      return { sessionByTab: next, processByTab }
     }),
 
   runSaved: (cmd) => {

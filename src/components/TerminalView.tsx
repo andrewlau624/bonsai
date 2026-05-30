@@ -12,6 +12,12 @@ const FONT_FAMILY = 'Menlo, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, 
 // a single chunk listing several ports yields a tab per port).
 const LOCAL_URL_RE = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+[^\s)'"]*/gi
 
+// Quote a path for the shell only when it needs it (spaces / shell-special
+// chars), matching how Finder/iTerm insert dropped file paths.
+function shellQuote(p: string): string {
+  return /[^\w@%+=:,./-]/.test(p) ? `'${p.replace(/'/g, `'\\''`)}'` : p
+}
+
 /**
  * One xterm.js instance bound to one PTY session for the lifetime of a tab.
  * Inactive tabs stay mounted (hidden via CSS) so their shell state survives
@@ -55,6 +61,11 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     let disposed = false
     let offData = () => {}
     let offExit = () => {}
+    let offProcess = () => {}
+
+    // Auto-title: programs (claude, vim, shell precmd hooks…) emit an OSC title
+    // escape; mirror it onto the tab, falling back to the branch when unset.
+    const titleSub = term.onTitleChange((t) => useApp.getState().setTabTitle(tab.id, t))
 
     void (async () => {
       const id = await window.bonsai.session.create({
@@ -79,6 +90,9 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
       offExit = window.bonsai.session.onExit((sid) => {
         if (sid === id) term.writeln('\r\n\x1b[90m[process exited]\x1b[0m')
       })
+      offProcess = window.bonsai.session.onProcess((sid, name) => {
+        if (sid === id) useApp.getState().setTabProcess(tab.id, name)
+      })
       term.onData((d) => window.bonsai.session.write(id, d))
     })()
 
@@ -101,6 +115,8 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
       ro.disconnect()
       offData()
       offExit()
+      offProcess()
+      titleSub.dispose()
       unregisterSession(tab.id)
       if (sessionIdRef.current) window.bonsai.session.kill(sessionIdRef.current)
       term.dispose()
@@ -147,6 +163,27 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
       className="term-pane"
       style={{ display: active ? 'block' : 'none' }}
       onClick={() => termRef.current?.focus()}
+      onDragOver={(e) => {
+        // Allow file drops; the path is dropped at the prompt to edit/run.
+        if (e.dataTransfer.types.includes('Files')) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+        }
+      }}
+      onDrop={(e) => {
+        const files = Array.from(e.dataTransfer.files)
+        if (files.length === 0) return
+        e.preventDefault()
+        const sid = sessionIdRef.current
+        if (!sid) return
+        const paths = files
+          .map((f) => window.bonsai.app.pathForFile(f))
+          .filter(Boolean)
+          .map(shellQuote)
+          .join(' ')
+        if (paths) window.bonsai.session.write(sid, paths)
+        termRef.current?.focus()
+      }}
     >
       <div className="term-surface" ref={containerRef} />
     </div>
