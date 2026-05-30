@@ -52,21 +52,31 @@ function Appearance() {
           <button
             key={t.id}
             className={`theme-card ${config.theme === t.id ? 'active' : ''}`}
+            style={{
+              background: t.vars['--bg'],
+              color: t.vars['--text'],
+              borderColor: config.theme === t.id ? t.vars['--accent'] : t.vars['--border'],
+            }}
             onClick={() => updateConfig({ theme: t.id })}
           >
-            <div className="theme-preview" style={{ background: t.swatch[0] }}>
-              <span className="theme-bar" style={{ background: t.swatch[1] }} />
-              <span className="sw" style={{ background: t.swatch[1] }} />
-              <span className="sw" style={{ background: t.swatch[2] }} />
+            <div className="theme-card-top">
+              <span className="sw" style={{ background: t.vars['--accent'] }} />
+              <span className="sw" style={{ background: t.vars['--blue'] }} />
+              <span className="sw" style={{ background: t.vars['--purple'] }} />
               {config.theme === t.id && (
-                <span className="theme-check">
+                <span
+                  className="theme-check"
+                  style={{ background: t.vars['--accent'], color: t.vars['--accent-ink'] }}
+                >
                   <Icon name="check" size={12} />
                 </span>
               )}
             </div>
-            <div className="theme-meta">
+            <div className="theme-card-bottom">
               <span className="theme-name">{t.name}</span>
-              <span className="theme-group">{t.group}</span>
+              <span className="theme-group" style={{ color: t.vars['--text-faint'] }}>
+                {t.group}
+              </span>
             </div>
           </button>
         ))}
