@@ -6,6 +6,10 @@ import type {
   PrStatus,
   PrCheck,
   PrComment,
+  PrCommit,
+  PrFile,
+  PrReviewComment,
+  PrCommitDetail,
   GhAccount,
 } from '../shared/types'
 
@@ -144,6 +148,86 @@ export async function prComments(cwd: string, num: number): Promise<PrComment[]>
 
 export async function prComment(cwd: string, num: number, body: string): Promise<void> {
   await gh(cwd, ['pr', 'comment', String(num), '--body', body])
+}
+
+export async function prCommits(cwd: string, num: number): Promise<PrCommit[]> {
+  const out = await gh(cwd, ['pr', 'view', String(num), '--json', 'commits'])
+  const data = JSON.parse(out) as {
+    commits?: Array<{
+      oid: string
+      messageHeadline: string
+      committedDate: string
+      authors?: Array<{ login?: string; name?: string }>
+    }>
+  }
+  return (data.commits ?? []).map((c) => ({
+    hash: c.oid,
+    shortHash: c.oid.slice(0, 7),
+    subject: c.messageHeadline,
+    author: c.authors?.[0]?.login || c.authors?.[0]?.name || '',
+    date: c.committedDate,
+  }))
+}
+
+export async function prCommitDiff(cwd: string, sha: string): Promise<PrCommitDetail> {
+  const nwo = (await gh(cwd, ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'])).trim()
+  const out = await gh(cwd, ['api', `repos/${nwo}/commits/${sha}`])
+  const data = JSON.parse(out) as {
+    commit?: { message?: string }
+    files?: Array<{ filename: string; additions: number; deletions: number; patch?: string }>
+  }
+  const files: PrFile[] = (data.files ?? []).map((f) => ({
+    path: f.filename,
+    additions: f.additions ?? 0,
+    deletions: f.deletions ?? 0,
+  }))
+  const diff = (data.files ?? [])
+    .filter((f) => f.patch)
+    .map((f) => `diff --git a/${f.filename} b/${f.filename}\n--- a/${f.filename}\n+++ b/${f.filename}\n${f.patch}`)
+    .join('\n')
+  return { message: data.commit?.message ?? '', files, diff }
+}
+
+export async function prFiles(cwd: string, num: number): Promise<PrFile[]> {
+  const out = await gh(cwd, ['pr', 'view', String(num), '--json', 'files'])
+  const data = JSON.parse(out) as {
+    files?: Array<{ path: string; additions: number; deletions: number }>
+  }
+  return (data.files ?? []).map((f) => ({
+    path: f.path,
+    additions: f.additions ?? 0,
+    deletions: f.deletions ?? 0,
+  }))
+}
+
+export async function prDiff(cwd: string, num: number): Promise<string> {
+  const out = await gh(cwd, ['pr', 'diff', String(num)])
+  const MAX = 800 * 1024
+  return out.length > MAX ? out.slice(0, MAX) + '\n… (diff truncated) …' : out
+}
+
+export async function prReviewComments(cwd: string, num: number): Promise<PrReviewComment[]> {
+  try {
+    const nwo = (await gh(cwd, ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'])).trim()
+    const out = await gh(cwd, ['api', '--paginate', `repos/${nwo}/pulls/${num}/comments`])
+    const raw = JSON.parse(out) as Array<{
+      path: string
+      line: number | null
+      original_line: number | null
+      body: string
+      user: { login: string }
+      diff_hunk: string
+    }>
+    return raw.map((c) => ({
+      path: c.path,
+      line: c.line ?? c.original_line ?? null,
+      author: c.user?.login ?? '',
+      body: c.body,
+      diffHunk: c.diff_hunk ?? '',
+    }))
+  } catch {
+    return []
+  }
 }
 
 export async function prReview(

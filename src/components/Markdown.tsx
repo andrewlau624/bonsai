@@ -1,17 +1,30 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
+import { Mermaid } from './Mermaid'
 
 // react-markdown + plugins are dynamically imported so they form their own
-// chunk (markdown is only ever needed inside the PR view). Raw HTML embedded in
-// PR bodies/comments is rendered via rehype-raw, then run through
-// rehype-sanitize so a malicious PR can't inject scripts into the renderer.
+// chunk. Raw HTML in PR bodies is rendered via rehype-raw then sanitized.
+// ```mermaid fenced blocks render as diagrams (sequenceDiagram, flowchart, …).
 type MarkdownComponent = ComponentType<{
   remarkPlugins?: unknown[]
   rehypePlugins?: unknown[]
+  components?: Record<string, unknown>
   children: string
 }>
 
 let cached: { Md: MarkdownComponent; remark: unknown[]; rehype: unknown[] } | null = null
+
+const components = {
+  code({ className, children, ...props }: { className?: string; children?: unknown }) {
+    const text = String(children ?? '').replace(/\n$/, '')
+    if (/\blanguage-mermaid\b/.test(className ?? '')) return <Mermaid chart={text} />
+    return (
+      <code className={className} {...props}>
+        {children as never}
+      </code>
+    )
+  },
+}
 
 export function Markdown({ children }: { children: string }) {
   const [mod, setMod] = useState(cached)
@@ -41,7 +54,7 @@ export function Markdown({ children }: { children: string }) {
   const { Md, remark, rehype } = mod
   return (
     <div className="md">
-      <Md remarkPlugins={remark} rehypePlugins={rehype}>
+      <Md remarkPlugins={remark} rehypePlugins={rehype} components={components}>
         {children}
       </Md>
     </div>

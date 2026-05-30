@@ -2503,3 +2503,157 @@ kbd {
 .win-drag * {
   -webkit-app-region: no-drag;
 }
+
+/* ---------- PR tabs ---------- */
+.pr-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 10px;
+  border-bottom: var(--border-width) solid var(--border-soft);
+}
+.pr-tabs button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.pr-tabs button:hover {
+  background: var(--bg-2);
+  color: var(--text);
+}
+.pr-tabs button.active {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+/* PR files tab */
+.pr-file {
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.pr-file-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--bg-2);
+  border: none;
+  color: var(--text);
+  padding: 7px 9px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.pr-file-head:hover {
+  background: var(--bg-3);
+}
+.pr-file-path {
+  flex: 1;
+  min-width: 0;
+}
+.pr-file-cc {
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+.pr-file-body {
+  border-top: var(--border-width) solid var(--border);
+}
+.pr-inline-comment {
+  border-top: var(--border-width) solid var(--border-soft);
+  padding: 10px 12px;
+  background: var(--bg);
+}
+.pr-inline-comment .pr-card-author {
+  gap: 8px;
+}
+.pr-hunk {
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  margin: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  white-space: pre;
+  overflow: auto;
+}
+
+/* Commit drill-in */
+.log-row-btn {
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  align-items: center;
+}
+.log-chevron {
+  margin-left: auto;
+  color: var(--text-faint);
+  flex: none;
+}
+.commit-detail {
+  padding-top: 4px;
+}
+.commit-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.commit-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.commit-msg {
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--text);
+}
+
+/* ---------- Mermaid diagrams ---------- */
+.md pre:has(.mermaid) {
+  background: none;
+  padding: 0;
+}
+.mermaid {
+  display: flex;
+  justify-content: center;
+  background: var(--bg-2);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin: 8px 0;
+  overflow: auto;
+}
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+.mermaid-loading {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 10px;
+}
+.mermaid-err {
+  background: var(--del-bg);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--del);
+  white-space: pre-wrap;
+}

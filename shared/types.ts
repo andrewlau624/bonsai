@@ -118,6 +118,35 @@ export interface PrComment {
   state?: string
 }
 
+export interface PrCommit {
+  hash: string
+  shortHash: string
+  subject: string
+  author: string
+  date: string
+}
+
+export interface PrFile {
+  path: string
+  additions: number
+  deletions: number
+}
+
+export interface PrReviewComment {
+  path: string
+  line: number | null
+  author: string
+  body: string
+  diffHunk: string
+}
+
+export interface PrCommitDetail {
+  message: string
+  files: PrFile[]
+  /** Combined unified diff of everything the commit changed. */
+  diff: string
+}
+
 export interface PullRequestDetail extends PullRequest {
   body: string
   baseRefName: string
@@ -240,6 +269,11 @@ export interface BonsaiApi {
     ): Promise<{ url: string }>
     edit(cwd: string, num: number, data: { title: string; body: string }): Promise<void>
     comment(cwd: string, num: number, body: string): Promise<void>
+    commits(cwd: string, num: number): Promise<PrCommit[]>
+    commitDiff(cwd: string, sha: string): Promise<PrCommitDetail>
+    files(cwd: string, num: number): Promise<PrFile[]>
+    diff(cwd: string, num: number): Promise<string>
+    reviewComments(cwd: string, num: number): Promise<PrReviewComment[]>
     review(
       cwd: string,
       num: number,

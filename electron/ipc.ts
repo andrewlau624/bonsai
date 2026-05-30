@@ -172,6 +172,13 @@ export function registerIpc(): void {
     (_e, cwd: string, num: number, event: 'approve' | 'request-changes' | 'comment', body: string) =>
       github.prReview(cwd, num, event, body),
   )
+  ipcMain.handle('pr:commits', (_e, cwd: string, num: number) => github.prCommits(cwd, num))
+  ipcMain.handle('pr:commitDiff', (_e, cwd: string, sha: string) => github.prCommitDiff(cwd, sha))
+  ipcMain.handle('pr:files', (_e, cwd: string, num: number) => github.prFiles(cwd, num))
+  ipcMain.handle('pr:diff', (_e, cwd: string, num: number) => github.prDiff(cwd, num))
+  ipcMain.handle('pr:reviewComments', (_e, cwd: string, num: number) =>
+    github.prReviewComments(cwd, num),
+  )
   ipcMain.handle('pr:accounts', () => github.ghAccounts())
   ipcMain.handle('pr:switchAccount', (_e, user: string) => github.ghSwitch(user))
   ipcMain.handle('pr:checkLog', (_e, cwd: string, link: string) => github.checkLog(cwd, link))

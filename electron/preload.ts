@@ -92,6 +92,19 @@ const api: BonsaiApi = {
     edit: (cwd, num, data) => ipcRenderer.invoke('pr:edit', cwd, num, data) as Promise<void>,
     comment: (cwd, num, body) =>
       ipcRenderer.invoke('pr:comment', cwd, num, body) as Promise<void>,
+    commits: (cwd, num) =>
+      ipcRenderer.invoke('pr:commits', cwd, num) as Promise<import('../shared/types').PrCommit[]>,
+    commitDiff: (cwd, sha) =>
+      ipcRenderer.invoke('pr:commitDiff', cwd, sha) as Promise<
+        import('../shared/types').PrCommitDetail
+      >,
+    files: (cwd, num) =>
+      ipcRenderer.invoke('pr:files', cwd, num) as Promise<import('../shared/types').PrFile[]>,
+    diff: (cwd, num) => ipcRenderer.invoke('pr:diff', cwd, num) as Promise<string>,
+    reviewComments: (cwd, num) =>
+      ipcRenderer.invoke('pr:reviewComments', cwd, num) as Promise<
+        import('../shared/types').PrReviewComment[]
+      >,
     review: (cwd, num, event, body) =>
       ipcRenderer.invoke('pr:review', cwd, num, event, body) as Promise<void>,
     accounts: () => ipcRenderer.invoke('pr:accounts') as Promise<import('../shared/types').GhAccount[]>,
