@@ -90,6 +90,7 @@ interface AppState {
 
   previewOpen: boolean
   previewUrl: string
+  previewDetected: boolean
 
   init: () => Promise<void>
   addRepo: () => Promise<void>
@@ -146,6 +147,7 @@ interface AppState {
   togglePreview: () => void
   setPreviewUrl: (url: string) => void
   openPreviewWindow: () => void
+  detectPreviewUrl: (url: string) => void
   isWebApp: () => boolean
   toggleSidebar: () => void
   setDrawerWidth: (w: number) => void
@@ -213,6 +215,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   previewOpen: false,
   previewUrl: 'http://localhost:3000',
+  previewDetected: false,
 
   init: async () => {
     const config = await window.bonsai.config.get()
@@ -688,8 +691,17 @@ export const useApp = create<AppState>((set, get) => ({
   setPreviewUrl: (url) => set({ previewUrl: url }),
   openPreviewWindow: () => void window.bonsai.window.openBrowser(get().previewUrl),
 
-  // Heuristic: a repo is a "web app" if it has a dev/start/serve/preview script.
+  // Picks up a dev-server URL printed in the terminal (Vite/Next/CRA/etc.).
+  detectPreviewUrl: (url) => {
+    const clean = url.replace(/[)\].,'"]+$/, '')
+    if (get().previewUrl === clean && get().previewDetected) return
+    set({ previewUrl: clean, previewDetected: true })
+  },
+
+  // A repo is a "web app" if it has a dev/start/serve/preview script, OR if a
+  // local server URL was detected in the terminal (covers non-npm setups).
   isWebApp: () => {
+    if (get().previewDetected) return true
     const tab = get().activeTab()
     if (!tab) return false
     const scripts = get().scriptsByCwd[tab.cwd] ?? []

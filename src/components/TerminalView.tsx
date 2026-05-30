@@ -8,6 +8,9 @@ import { getTheme } from '../themes'
 
 const FONT_FAMILY = 'Menlo, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace'
 
+// Matches a local dev-server URL printed by Vite/Next/CRA/etc.
+const LOCAL_URL_RE = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+[^\s)'"]*/i
+
 /**
  * One xterm.js instance bound to one PTY session for the lifetime of a tab.
  * Inactive tabs stay mounted (hidden via CSS) so their shell state survives
@@ -67,7 +70,10 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
       sessionIdRef.current = id
       registerSession(tab.id, id)
       offData = window.bonsai.session.onData((sid, data) => {
-        if (sid === id) term.write(data)
+        if (sid !== id) return
+        term.write(data)
+        const m = LOCAL_URL_RE.exec(data)
+        if (m) useApp.getState().detectPreviewUrl(m[0])
       })
       offExit = window.bonsai.session.onExit((sid) => {
         if (sid === id) term.writeln('\r\n\x1b[90m[process exited]\x1b[0m')

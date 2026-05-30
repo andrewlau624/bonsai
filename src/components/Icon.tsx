@@ -30,6 +30,7 @@ import {
   PanelLeft,
   MessageSquare,
   Play,
+  Globe,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -69,6 +70,7 @@ const MAP = {
   panel: PanelLeft,
   comment: MessageSquare,
   play: Play,
+  globe: Globe,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof MAP

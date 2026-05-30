@@ -109,7 +109,7 @@ export default function App() {
                   title="Localhost preview"
                   onClick={togglePreview}
                 >
-                  <Icon name="play" size={15} />
+                  <Icon name="globe" size={15} />
                 </button>
               )}
             </>

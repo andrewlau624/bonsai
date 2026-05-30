@@ -418,11 +418,14 @@ export function applyTheme(id: string, opts: StyleOptions): void {
   // UI font override (mono stays from the theme).
   root.style.setProperty('--font-ui', UI_FONTS[opts.uiFont] ?? UI_FONTS.system)
 
-  // Corner style override (soft = theme default, so clear the override).
+  // Corner style override (soft = theme default, so clear any prior override).
   const corner = CORNERS[opts.corners] ?? CORNERS.soft
   if (corner.r) {
     root.style.setProperty('--radius', corner.r)
     root.style.setProperty('--radius-sm', corner.sm)
+  } else {
+    root.style.removeProperty('--radius')
+    root.style.removeProperty('--radius-sm')
   }
 
   // Accent override ('theme' keeps the theme's own accent; 'custom' uses hex).
@@ -450,7 +453,13 @@ export function applyTheme(id: string, opts: StyleOptions): void {
   root.dataset.animations = opts.animations ? 'on' : 'off'
   root.dataset.uifont = opts.uiFont
   root.dataset.transparency = opts.reduceTransparency ? 'off' : 'on'
-  root.style.setProperty('zoom', UI_ZOOM[opts.uiScale ?? 'normal'] ?? '1')
+  // Whole-window zoom via Chromium page zoom (keeps layout/structure intact;
+  // CSS zoom on <html> breaks 100vh sizing).
+  try {
+    window.bonsai?.setZoom?.(Number(UI_ZOOM[opts.uiScale ?? 'normal'] ?? '1'))
+  } catch {
+    /* not in a Bonsai window */
+  }
 }
 
 /** Apply a full AppConfig-shaped object's appearance to the document. */

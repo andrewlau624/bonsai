@@ -314,6 +314,8 @@ export interface BonsaiApi {
     openBrowser(url: string): Promise<void>
   }
   openExternal(url: string): Promise<void>
+  /** Set the renderer page zoom factor (whole-window scale). */
+  setZoom(factor: number): void
   app: {
     /** Open a folder/file in the OS file manager. */
     reveal(path: string): Promise<void>

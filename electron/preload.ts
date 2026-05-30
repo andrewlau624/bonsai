@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import type {
   BonsaiApi,
   Repo,
@@ -127,6 +127,7 @@ const api: BonsaiApi = {
     openBrowser: (url) => ipcRenderer.invoke('window:openBrowser', url) as Promise<void>,
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) as Promise<void>,
+  setZoom: (factor) => webFrame.setZoomFactor(factor),
   app: {
     reveal: (p) => ipcRenderer.invoke('app:reveal', p) as Promise<void>,
     openInEditor: (p) => ipcRenderer.invoke('app:openInEditor', p) as Promise<boolean>,
