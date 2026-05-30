@@ -8,10 +8,39 @@ import type { SessionOptions } from '../shared/types'
 interface Session {
   id: string
   proc: pty.IPty
+  sender: WebContents
+  lastProcess: string
 }
 
 const sessions = new Map<string, Session>()
 let counter = 0
+let processPoll: ReturnType<typeof setInterval> | null = null
+
+// Poll each PTY's foreground process name (node-pty's `process` reflects the
+// active foreground program — `claude`, `vim`, `node`, the shell when idle).
+// Renderer uses it to title tabs and flag which ones are busy.
+function ensureProcessPoll(): void {
+  if (processPoll) return
+  processPoll = setInterval(() => {
+    if (sessions.size === 0) {
+      clearInterval(processPoll!)
+      processPoll = null
+      return
+    }
+    for (const s of sessions.values()) {
+      let name = ''
+      try {
+        name = s.proc.process || ''
+      } catch {
+        /* pty gone */
+      }
+      if (name && name !== s.lastProcess) {
+        s.lastProcess = name
+        if (!s.sender.isDestroyed()) s.sender.send('session:process', s.id, name)
+      }
+    }
+  }, 1000)
+}
 
 function defaultShell(): string {
   if (process.platform === 'win32') return process.env.COMSPEC || 'powershell.exe'
@@ -44,7 +73,8 @@ export function createSession(opts: SessionOptions, sender: WebContents): string
     sessions.delete(id)
   })
 
-  sessions.set(id, { id, proc })
+  sessions.set(id, { id, proc, sender, lastProcess: '' })
+  ensureProcessPoll()
   return id
 }
 

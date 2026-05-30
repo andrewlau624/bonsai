@@ -9,8 +9,9 @@ import { Settings } from './components/Settings'
 import { CommandBar } from './components/CommandBar'
 import { CommandPalette } from './components/CommandPalette'
 import { BranchPicker } from './components/BranchPicker'
+import { TabStrip } from './components/TabStrip'
 import { Preview } from './components/Preview'
-import { PortsMenu, previewLabel } from './components/PortsMenu'
+import { PortsMenu } from './components/PortsMenu'
 import { Icon } from './components/Icon'
 import { Logo } from './components/Logo'
 
@@ -35,8 +36,6 @@ export default function App() {
     isWebApp,
     previewTabs,
     activePane,
-    setPaneActive,
-    closePreviewTab,
   } = useApp()
 
   useEffect(() => {
@@ -100,17 +99,6 @@ export default function App() {
           >
             <Icon name="panel" size={15} />
           </button>
-          {tabs
-            .filter((t) => t.id === activeTabId)
-            .map((t) => (
-              <div key={t.id} className="active-tab-chip">
-                <Icon name="terminal" size={13} />
-                <span className="ellipsis">{t.branch}</span>
-                <button className="icon-btn close" onClick={() => closeTab(t.id)} title="Close tab (⌘W)">
-                  <Icon name="close" size={13} />
-                </button>
-              </div>
-            ))}
           <Breadcrumb />
           {tab && (
             <>
@@ -140,36 +128,7 @@ export default function App() {
 
         <div className="body">
           <div className="terminals">
-            {previewTabs.length > 0 && (
-              <div className="pane-tabs">
-                <button
-                  className={activePane === 'terminal' ? 'active' : ''}
-                  onClick={() => setPaneActive('terminal')}
-                >
-                  <Icon name="terminal" size={13} /> Terminal
-                </button>
-                {previewTabs.map((pt) => (
-                  <button
-                    key={pt.id}
-                    className={activePane === pt.id ? 'active' : ''}
-                    onClick={() => setPaneActive(pt.id)}
-                  >
-                    <Icon name="globe" size={13} /> {previewLabel(pt.url)}
-                    <span
-                      className="pane-tab-close"
-                      title="Close preview"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        closePreviewTab(pt.id)
-                      }}
-                    >
-                      <Icon name="close" size={11} />
-                    </span>
-                  </button>
-                ))}
-                <PortsMenu variant="chevron" />
-              </div>
-            )}
+            <TabStrip />
             <div className="pane-content">
               <div
                 className="pane-terminals"

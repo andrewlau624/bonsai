@@ -85,6 +85,10 @@ export interface TabState {
   branch: string
   cwd: string
   title: string
+  /** Live title reported by the running program via OSC (e.g. "Claude Code"). */
+  liveTitle?: string
+  /** Pinned tabs float to the front of the strip and stay put. */
+  pinned?: boolean
 }
 
 export interface SavedCommand {
@@ -268,6 +272,8 @@ export interface BonsaiApi {
     kill(id: string): void
     onData(cb: (id: string, data: string) => void): () => void
     onExit(cb: (id: string, code: number) => void): () => void
+    /** Fires when a session's foreground process name changes (for tab titles / busy state). */
+    onProcess(cb: (id: string, name: string) => void): () => void
   }
   layout: {
     load(): Promise<{ tabs: TabState[]; layout: LayoutState }>
@@ -338,6 +344,8 @@ export interface BonsaiApi {
     reveal(path: string): Promise<void>
     /** Open a path in the user's editor (VS Code if available). Resolves to true on success. */
     openInEditor(path: string): Promise<boolean>
+    /** Resolve the absolute filesystem path of a dropped File (Electron webUtils). */
+    pathForFile(file: File): string
   }
   onOpenSettings(cb: () => void): () => void
   onReloadPreview(cb: () => void): () => void

@@ -32,6 +32,7 @@ import {
   Play,
   Globe,
   Star,
+  Pin,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -73,6 +74,7 @@ const MAP = {
   play: Play,
   globe: Globe,
   star: Star,
+  pin: Pin,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof MAP

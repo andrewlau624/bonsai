@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, webFrame } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
 import type {
   BonsaiApi,
   Repo,
@@ -73,6 +73,11 @@ const api: BonsaiApi = {
       ipcRenderer.on('session:exit', listener)
       return () => ipcRenderer.removeListener('session:exit', listener)
     },
+    onProcess: (cb) => {
+      const listener = (_e: unknown, id: string, name: string) => cb(id, name)
+      ipcRenderer.on('session:process', listener)
+      return () => ipcRenderer.removeListener('session:process', listener)
+    },
   },
   layout: {
     load: () =>
@@ -143,6 +148,7 @@ const api: BonsaiApi = {
   app: {
     reveal: (p) => ipcRenderer.invoke('app:reveal', p) as Promise<void>,
     openInEditor: (p) => ipcRenderer.invoke('app:openInEditor', p) as Promise<boolean>,
+    pathForFile: (file) => webUtils.getPathForFile(file),
   },
   onOpenSettings: (cb) => {
     const listener = () => cb()
