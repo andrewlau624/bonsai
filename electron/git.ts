@@ -213,6 +213,31 @@ export async function unstageFile(cwd: string, file: string): Promise<void> {
   }
 }
 
+export async function discardFile(cwd: string, file: string): Promise<void> {
+  try {
+    await git(cwd).raw(['restore', '--staged', '--worktree', '--', file])
+  } catch {
+    // Untracked (or no HEAD yet) — just remove the file.
+    try {
+      fs.rmSync(path.resolve(cwd, file), { force: true })
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** package.json scripts in the worktree, for one-click running. */
+export function packageScripts(cwd: string): Array<{ name: string; command: string }> {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>
+    }
+    return Object.entries(pkg.scripts ?? {}).map(([name, command]) => ({ name, command }))
+  } catch {
+    return []
+  }
+}
+
 export async function commit(cwd: string, message: string): Promise<void> {
   const msg = message.trim()
   if (!msg) throw new Error('Commit message is required')

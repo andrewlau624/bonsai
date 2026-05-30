@@ -50,6 +50,9 @@ const api: BonsaiApi = {
     listDir: (cwd, relPath) =>
       ipcRenderer.invoke('git:listDir', cwd, relPath) as Promise<DirEntry[]>,
     log: (cwd) => ipcRenderer.invoke('git:log', cwd) as Promise<import('../shared/types').Commit[]>,
+    discard: (cwd, file) => ipcRenderer.invoke('git:discard', cwd, file) as Promise<void>,
+    scripts: (cwd) =>
+      ipcRenderer.invoke('git:scripts', cwd) as Promise<Array<{ name: string; command: string }>>,
   },
   session: {
     create: (opts: SessionOptions) =>
@@ -119,6 +122,8 @@ const api: BonsaiApi = {
       return () => ipcRenderer.removeListener('code:navigate', listener)
     },
     openPr: (cwd, num) => ipcRenderer.invoke('window:openPr', cwd, num) as Promise<void>,
+    openDiff: (cwd, kind, ref, file) =>
+      ipcRenderer.invoke('window:openDiff', cwd, kind, ref, file) as Promise<void>,
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) as Promise<void>,
   app: {

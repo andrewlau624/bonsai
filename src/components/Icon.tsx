@@ -28,6 +28,8 @@ import {
   History,
   ExternalLink,
   PanelLeft,
+  MessageSquare,
+  Play,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -65,6 +67,8 @@ const MAP = {
   history: History,
   external: ExternalLink,
   panel: PanelLeft,
+  comment: MessageSquare,
+  play: Play,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof MAP

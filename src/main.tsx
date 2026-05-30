@@ -11,6 +11,9 @@ const CodeViewer = lazy(() =>
   import('./components/CodeViewer').then((m) => ({ default: m.CodeViewer })),
 )
 const PrWindow = lazy(() => import('./components/PrWindow').then((m) => ({ default: m.PrWindow })))
+const DiffWindow = lazy(() =>
+  import('./components/DiffWindow').then((m) => ({ default: m.DiffWindow })),
+)
 
 const params = new URLSearchParams(window.location.search)
 const view = params.get('view')
@@ -27,6 +30,18 @@ function Root() {
     return (
       <Suspense fallback={<div className="cv-loading">Loading…</div>}>
         <PrWindow cwd={params.get('cwd') ?? ''} num={Number(params.get('num') ?? 0)} />
+      </Suspense>
+    )
+  }
+  if (view === 'diff') {
+    return (
+      <Suspense fallback={<div className="cv-loading">Loading…</div>}>
+        <DiffWindow
+          cwd={params.get('cwd') ?? ''}
+          kind={params.get('kind') ?? 'pr'}
+          gitRef={params.get('ref') ?? ''}
+          file={params.get('file') ?? ''}
+        />
       </Suspense>
     )
   }

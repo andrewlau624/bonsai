@@ -41,6 +41,10 @@ function applyConfig(c: AppConfig) {
     corners: c.corners,
     animations: c.animations,
     accent: c.accent,
+    accentColor: c.accentColor,
+    uiScale: c.uiScale,
+    monoFont: c.monoFont,
+    reduceTransparency: c.reduceTransparency,
   })
 }
 
@@ -66,6 +70,7 @@ interface AppState {
 
   sessionByTab: Record<string, string>
   commandsByRepo: Record<string, SavedCommand[]>
+  scriptsByCwd: Record<string, Array<{ name: string; command: string }>>
 
   prStatus: PrStatus | null
   prDetail: PullRequestDetail | null
@@ -100,6 +105,7 @@ interface AppState {
   refreshStatus: () => Promise<void>
   stage: (file: string) => Promise<void>
   unstage: (file: string) => Promise<void>
+  discardFile: (file: string) => Promise<void>
   stageAll: () => Promise<void>
   commit: () => Promise<void>
   sync: (op: 'push' | 'pull' | 'fetch') => Promise<void>
@@ -112,6 +118,8 @@ interface AppState {
   registerSession: (tabId: string, sessionId: string) => void
   unregisterSession: (tabId: string) => void
   runSaved: (cmd: SavedCommand) => void
+  runScript: (name: string) => void
+  loadScripts: () => Promise<void>
   loadCommands: (repoId: string) => Promise<void>
   saveCommands: (repoId: string, list: SavedCommand[]) => Promise<void>
 
@@ -177,6 +185,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   sessionByTab: {},
   commandsByRepo: {},
+  scriptsByCwd: {},
 
   prStatus: null,
   prDetail: null,
@@ -215,6 +224,7 @@ export const useApp = create<AppState>((set, get) => ({
     }
     for (const r of repos) void get().loadCommands(r.id)
     void get().refreshStatus()
+    void get().loadScripts()
   },
 
   addRepo: async () => {
@@ -274,6 +284,7 @@ export const useApp = create<AppState>((set, get) => ({
       }))
       get().persist()
       void get().refreshStatus()
+    void get().loadScripts()
       return
     }
 
@@ -305,6 +316,7 @@ export const useApp = create<AppState>((set, get) => ({
     })
     get().persist()
     void get().refreshStatus()
+    void get().loadScripts()
   },
 
   toggleBranch: (repoId, branch) => {
@@ -319,6 +331,7 @@ export const useApp = create<AppState>((set, get) => ({
     set({ activeTabId: id, inspector: { kind: 'list' } })
     get().persist()
     void get().refreshStatus()
+    void get().loadScripts()
   },
 
   closeTab: (id) => {
@@ -330,6 +343,7 @@ export const useApp = create<AppState>((set, get) => ({
     })
     get().persist()
     void get().refreshStatus()
+    void get().loadScripts()
   },
 
   persist: () => {
@@ -383,6 +397,14 @@ export const useApp = create<AppState>((set, get) => ({
     const tab = get().activeTab()
     if (!tab) return
     await window.bonsai.git.unstage(tab.cwd, file)
+    await get().refreshStatus()
+  },
+
+  discardFile: async (file) => {
+    const tab = get().activeTab()
+    if (!tab) return
+    if (!confirm(`Discard all changes to ${file}? This can't be undone.`)) return
+    await window.bonsai.git.discard(tab.cwd, file)
     await get().refreshStatus()
   },
 
@@ -483,6 +505,24 @@ export const useApp = create<AppState>((set, get) => ({
       for (const line of cmd.commands) {
         if (line.trim()) window.bonsai.session.write(sid, line + '\n')
       }
+    }
+  },
+
+  runScript: (name) => {
+    const { activeTabId, sessionByTab } = get()
+    if (!activeTabId) return
+    const sid = sessionByTab[activeTabId]
+    if (sid) window.bonsai.session.write(sid, `npm run ${name}\n`)
+  },
+
+  loadScripts: async () => {
+    const tab = get().activeTab()
+    if (!tab) return
+    try {
+      const scripts = await window.bonsai.git.scripts(tab.cwd)
+      set((s) => ({ scriptsByCwd: { ...s.scriptsByCwd, [tab.cwd]: scripts } }))
+    } catch {
+      /* ignore */
     }
   },
 

@@ -178,6 +178,8 @@ export interface Profile {
 export type UiFont = 'system' | 'rounded' | 'mono' | 'serif'
 export type Corners = 'sharp' | 'soft' | 'round'
 export type CursorStyle = 'bar' | 'block' | 'underline'
+export type UiScale = 'small' | 'normal' | 'large'
+export type MonoFont = 'system' | 'jetbrains' | 'fira' | 'ibm' | 'commit' | 'mono45'
 
 /** User-tunable configuration, persisted and editable as a JSON file. */
 export interface AppConfig {
@@ -193,8 +195,20 @@ export interface AppConfig {
   cursorStyle: CursorStyle
   /** Whether UI transitions/animations play. */
   animations: boolean
-  /** Accent color override id, or 'theme' to use the theme's own accent. */
+  /** Accent color override id, 'custom', or 'theme' to use the theme's accent. */
   accent: string
+  /** Custom accent hex used when accent === 'custom'. */
+  accentColor: string
+  /** Overall interface text scale. */
+  uiScale: UiScale
+  /** Monospace font family for terminals and code. */
+  monoFont: MonoFont
+  /** Disable backdrop blur / translucency on overlays. */
+  reduceTransparency: boolean
+  /** Syntax-highlight code in the viewer. */
+  syntaxHighlight: boolean
+  /** Show line numbers in the code viewer. */
+  codeLineNumbers: boolean
   /** Layout preferences. */
   sidebarCollapsed: boolean
   drawerWidth: number
@@ -233,9 +247,11 @@ export interface BonsaiApi {
     createBranch(repoId: string, name: string, from?: string): Promise<void>
     deleteBranch(repoId: string, name: string, force?: boolean): Promise<void>
     diffFile(cwd: string, file: string, staged: boolean): Promise<string>
+    discard(cwd: string, file: string): Promise<void>
     readFile(cwd: string, relPath: string): Promise<{ content: string; truncated: boolean }>
     listDir(cwd: string, relPath: string): Promise<DirEntry[]>
     log(cwd: string): Promise<Commit[]>
+    scripts(cwd: string): Promise<Array<{ name: string; command: string }>>
   }
   session: {
     create(opts: SessionOptions): Promise<string>
@@ -292,6 +308,8 @@ export interface BonsaiApi {
     onNavigate(cb: (file: string) => void): () => void
     /** Open a pull request in its own window. */
     openPr(cwd: string, num: number): Promise<void>
+    /** Open a single file's diff (+/-) from a PR or commit in its own window. */
+    openDiff(cwd: string, kind: 'pr' | 'commit', ref: string, file: string): Promise<void>
   }
   openExternal(url: string): Promise<void>
   app: {

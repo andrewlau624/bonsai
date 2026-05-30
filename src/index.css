@@ -167,7 +167,7 @@ button {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px 10px;
-  padding-top: 32px;
+  padding-top: 40px;
   -webkit-app-region: drag;
 }
 .sidebar-header .icon-btn {
@@ -385,7 +385,7 @@ button {
   align-items: center;
   gap: 10px;
   padding: 7px 12px;
-  padding-top: 30px;
+  padding-top: 40px;
   background: var(--bg-elev);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
@@ -997,7 +997,7 @@ button {
 }
 [data-density='compact'] .topbar,
 [data-density='compact'] .sc-head {
-  padding-top: 26px;
+  padding-top: 34px;
 }
 [data-density='compact'] .sc-file {
   padding: 3px 6px;
@@ -1662,7 +1662,7 @@ button {
   border-right: var(--border-width) solid var(--border);
   display: flex;
   flex-direction: column;
-  padding-top: 28px;
+  padding-top: 38px;
 }
 .cv-tree-head {
   display: flex;
@@ -1720,7 +1720,7 @@ button {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding-top: 28px;
+  padding-top: 38px;
 }
 .cv-file-head {
   display: flex;
@@ -2359,7 +2359,7 @@ kbd {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding-top: 28px;
+  padding-top: 38px;
   background: var(--bg);
 }
 .check-name {
@@ -2496,7 +2496,7 @@ kbd {
   top: 0;
   left: 0;
   right: 0;
-  height: 28px;
+  height: 38px;
   -webkit-app-region: drag;
   z-index: 100;
 }
@@ -2592,6 +2592,12 @@ kbd {
   background: none;
   cursor: pointer;
   align-items: center;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.log-row-btn:hover {
+  background: var(--bg-2);
 }
 .log-chevron {
   margin-left: auto;
@@ -2656,4 +2662,73 @@ kbd {
   font-size: 11px;
   color: var(--del);
   white-space: pre-wrap;
+}
+
+/* ---------- Diff window ---------- */
+.diff-window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  padding-top: 38px;
+}
+.diff-window-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: var(--border-width) solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.diff-window-head svg {
+  color: var(--accent);
+  flex: none;
+}
+.diff-window-body {
+  flex: 1;
+  overflow: auto;
+}
+
+/* ---------- Reduce transparency ---------- */
+[data-transparency='off'] .modal-scrim,
+[data-transparency='off'] .settings-scrim,
+[data-transparency='off'] .palette-scrim {
+  backdrop-filter: none;
+  background: rgba(2, 5, 9, 0.82);
+}
+
+/* ---------- Custom accent swatch ---------- */
+.accent-custom {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+}
+.accent-custom input {
+  position: absolute;
+  inset: -6px;
+  width: 200%;
+  height: 200%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+/* ---------- Script chips + discard ---------- */
+.cmd-chip.script {
+  border-style: dashed;
+}
+.sc-discard {
+  flex: none;
+  opacity: 0;
+  color: var(--text-faint);
+}
+.sc-file:hover .sc-discard {
+  opacity: 1;
+}
+.sc-discard:hover {
+  color: var(--danger);
 }

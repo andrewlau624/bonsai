@@ -95,6 +95,13 @@ function Appearance() {
             {a.id === 'theme' ? 'A' : config.accent === a.id ? <Icon name="check" size={13} /> : null}
           </button>
         ))}
+        <label className={`accent-dot accent-custom ${config.accent === 'custom' ? 'active' : ''}`} title="Custom">
+          <input
+            type="color"
+            value={config.accentColor}
+            onChange={(e) => updateConfig({ accent: 'custom', accentColor: e.target.value })}
+          />
+        </label>
       </div>
 
       <h4 className="set-h">Interface</h4>
@@ -145,13 +152,65 @@ function Appearance() {
       </div>
       <div className="set-row">
         <div className="set-label">
+          <span>Scale</span>
+          <span className="set-desc">Zoom the whole interface up or down.</span>
+        </div>
+        <Seg
+          value={config.uiScale}
+          onChange={(v) => updateConfig({ uiScale: v })}
+          options={[
+            { v: 'small', label: 'Small' },
+            { v: 'normal', label: 'Normal' },
+            { v: 'large', label: 'Large' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Reduce transparency</span>
+          <span className="set-desc">Turn off the blur behind dialogs and overlays.</span>
+        </div>
+        <Switch on={config.reduceTransparency} onChange={(v) => updateConfig({ reduceTransparency: v })} />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
           <span>Animations</span>
           <span className="set-desc">Play transitions and motion across the UI.</span>
         </div>
         <Switch on={config.animations} onChange={(v) => updateConfig({ animations: v })} />
       </div>
 
-      <h4 className="set-h">Terminal</h4>
+      <h4 className="set-h">Code &amp; terminal</h4>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Monospace font</span>
+          <span className="set-desc">Font for terminals, diffs, and the code viewer.</span>
+        </div>
+        <Seg
+          value={config.monoFont}
+          onChange={(v) => updateConfig({ monoFont: v })}
+          options={[
+            { v: 'system', label: 'System' },
+            { v: 'jetbrains', label: 'JetBrains' },
+            { v: 'fira', label: 'Fira' },
+            { v: 'ibm', label: 'IBM' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Syntax highlighting</span>
+          <span className="set-desc">Color code by language in the viewer.</span>
+        </div>
+        <Switch on={config.syntaxHighlight} onChange={(v) => updateConfig({ syntaxHighlight: v })} />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Line numbers</span>
+          <span className="set-desc">Show line numbers in the code viewer.</span>
+        </div>
+        <Switch on={config.codeLineNumbers} onChange={(v) => updateConfig({ codeLineNumbers: v })} />
+      </div>
       <div className="set-row">
         <div className="set-label">
           <span>Font size</span>

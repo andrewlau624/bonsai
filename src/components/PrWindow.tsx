@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { applyTheme } from '../themes'
+import { applyConfigStyle } from '../themes'
 import { PrView } from './PrView'
 import type { PullRequestDetail, PrComment } from '../../shared/types'
 
@@ -19,15 +19,7 @@ export function PrWindow({ cwd, num }: { cwd: string; num: number }) {
   }, [cwd, num])
 
   useEffect(() => {
-    void window.bonsai.config.get().then((c) =>
-      applyTheme(c.theme, {
-        density: c.density,
-        uiFont: c.uiFont,
-        corners: c.corners,
-        animations: c.animations,
-        accent: c.accent,
-      }),
-    )
+    void window.bonsai.config.get().then(applyConfigStyle)
     void reload()
   }, [reload])
 

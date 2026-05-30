@@ -112,15 +112,15 @@ function Checks({ cwd, checks }: { cwd: string; checks: PrCheck[] }) {
 }
 
 function FilesTab({
-  cwd,
   files,
   diffMap,
   reviewComments,
+  onOpenFile,
 }: {
-  cwd: string
   files: PrFile[] | null
   diffMap: Record<string, string> | null
   reviewComments: PrReviewComment[]
+  onOpenFile: (path: string) => void
 }) {
   const [open, setOpen] = useState<string | null>(null)
   if (!files) return <div className="sc-empty">Loading files…</div>
@@ -139,13 +139,18 @@ function FilesTab({
                 {f.additions ? <span className="add">+{f.additions}</span> : null}
                 {f.deletions ? <span className="del">−{f.deletions}</span> : null}
               </span>
-              {fileComments.length > 0 && <span className="pr-file-cc">{fileComments.length}💬</span>}
+              {fileComments.length > 0 && (
+                <span className="pr-file-cc">
+                  <Icon name="comment" size={12} />
+                  {fileComments.length}
+                </span>
+              )}
               <span
                 className="icon-btn"
-                title="Open in code window"
+                title="Open diff in window"
                 onClick={(e) => {
                   e.stopPropagation()
-                  void window.bonsai.window.openCode(cwd, f.path)
+                  onOpenFile(f.path)
                 }}
               >
                 <Icon name="external" size={12} />
@@ -153,10 +158,17 @@ function FilesTab({
             </button>
             {isOpen && (
               <div className="pr-file-body">
-                {diffMap && diffMap[f.path] ? (
+                {diffMap === null ? (
+                  <div className="diff-empty">Loading diff…</div>
+                ) : diffMap[f.path] ? (
                   <DiffView diff={diffMap[f.path]} />
                 ) : (
-                  <div className="diff-empty">No inline diff available.</div>
+                  <div className="diff-empty">
+                    No inline diff (binary or too large).{' '}
+                    <button className="text-btn" onClick={() => onOpenFile(f.path)}>
+                      Open in window
+                    </button>
+                  </div>
                 )}
                 {fileComments.map((c, i) => (
                   <div className="pr-inline-comment" key={i}>
@@ -199,7 +211,12 @@ function CommitDetail({ cwd, commit, onBack }: { cwd: string; commit: PrCommit; 
       {!d ? (
         <div className="sc-empty">Loading changes…</div>
       ) : (
-        <FilesTab cwd={cwd} files={d.files} diffMap={diffMap} reviewComments={[]} />
+        <FilesTab
+          files={d.files}
+          diffMap={diffMap}
+          reviewComments={[]}
+          onOpenFile={(path) => void window.bonsai.window.openDiff(cwd, 'commit', commit.hash, path)}
+        />
       )}
     </div>
   )
@@ -434,7 +451,12 @@ export function PrView({
           ))}
 
         {tab === 'files' && (
-          <FilesTab cwd={cwd} files={files} diffMap={diffMap} reviewComments={reviewComments} />
+          <FilesTab
+            files={files}
+            diffMap={diffMap}
+            reviewComments={reviewComments}
+            onOpenFile={(path) => void window.bonsai.window.openDiff(cwd, 'pr', String(num), path)}
+          />
         )}
       </div>
     </div>

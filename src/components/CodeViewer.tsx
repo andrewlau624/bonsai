@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import type { DirEntry } from '../../shared/types'
-import { applyTheme } from '../themes'
+import { applyConfigStyle } from '../themes'
 import { highlight } from '../highlight'
 import { Icon } from './Icon'
 
@@ -21,6 +21,8 @@ export function CodeViewer({ cwd, initialFile }: { cwd: string; initialFile: str
   const [html, setHtml] = useState<string | null>(null)
   const [truncated, setTruncated] = useState(false)
   const [showHidden, setShowHidden] = useState(true)
+  const [lineNumbers, setLineNumbers] = useState(true)
+  const [syntax, setSyntax] = useState(true)
   const [treeWidth, setTreeWidth] = useState(280)
   const [treeOpen, setTreeOpen] = useState(true)
   const dragging = useRef(false)
@@ -42,22 +44,20 @@ export function CodeViewer({ cwd, initialFile }: { cwd: string; initialFile: str
       setTruncated(t)
       setHtml(null)
       void browse(dirOf(relPath))
-      const hl = await highlight(c, relPath)
-      setHtml(hl)
+      if (syntax) {
+        const hl = await highlight(c, relPath)
+        setHtml(hl)
+      }
     },
-    [cwd, browse],
+    [cwd, browse, syntax],
   )
 
   useEffect(() => {
     void window.bonsai.config.get().then((c) => {
-      applyTheme(c.theme, {
-        density: c.density,
-        uiFont: c.uiFont,
-        corners: c.corners,
-        animations: c.animations,
-        accent: c.accent,
-      })
+      applyConfigStyle(c)
       setShowHidden(c.modes.showHiddenFiles !== false)
+      setLineNumbers(c.codeLineNumbers !== false)
+      setSyntax(c.syntaxHighlight !== false)
     })
   }, [])
 
@@ -149,11 +149,13 @@ export function CodeViewer({ cwd, initialFile }: { cwd: string; initialFile: str
               {truncated && <span className="cv-trunc">truncated</span>}
             </header>
             <div className="cv-code">
-              <div className="cv-gutter" aria-hidden>
-                {Array.from({ length: lineCount }, (_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </div>
+              {lineNumbers && (
+                <div className="cv-gutter" aria-hidden>
+                  {Array.from({ length: lineCount }, (_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+              )}
               {html != null ? (
                 <pre className="cv-pre hljs">
                   <code dangerouslySetInnerHTML={{ __html: html }} />

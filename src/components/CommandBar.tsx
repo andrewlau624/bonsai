@@ -113,17 +113,31 @@ function Editor({ repoId, list, onClose }: { repoId: string; list: SavedCommand[
 }
 
 export function CommandBar() {
-  const { activeTab, commandsByRepo, runSaved } = useApp()
+  const { activeTab, commandsByRepo, scriptsByCwd, runSaved, runScript } = useApp()
   const [editing, setEditing] = useState(false)
   const tab = activeTab()
   if (!tab) return null
   const list = commandsByRepo[tab.repoId] ?? []
+  const scripts = scriptsByCwd[tab.cwd] ?? []
 
   return (
     <div className="command-bar">
       <Icon name="terminal" size={13} className="cmd-bar-icon" />
       <div className="cmd-chips">
-        {list.length === 0 && <span className="cmd-empty">No saved commands — bookmark one →</span>}
+        {list.length === 0 && scripts.length === 0 && (
+          <span className="cmd-empty">No saved commands — bookmark one →</span>
+        )}
+        {scripts.map((s) => (
+          <button
+            key={`script-${s.name}`}
+            className="cmd-chip script"
+            title={`npm run ${s.name}\n${s.command}`}
+            onClick={() => runScript(s.name)}
+          >
+            <Icon name="play" size={11} />
+            {s.name}
+          </button>
+        ))}
         {list.map((c) => (
           <button
             key={c.id}

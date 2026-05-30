@@ -14,7 +14,7 @@ import * as gitOps from './git'
 import * as ptyMgr from './pty'
 import * as store from './store'
 import * as github from './github'
-import { openCodeWindow, openPrWindow } from './main'
+import { openCodeWindow, openPrWindow, openDiffWindow } from './main'
 
 export function registerIpc(): void {
   // ---- Repos ----
@@ -98,6 +98,8 @@ export function registerIpc(): void {
     gitOps.listDir(cwd, relPath),
   )
   ipcMain.handle('git:log', (_e, cwd: string) => gitOps.log(cwd))
+  ipcMain.handle('git:discard', (_e, cwd: string, file: string) => gitOps.discardFile(cwd, file))
+  ipcMain.handle('git:scripts', (_e, cwd: string) => gitOps.packageScripts(cwd))
 
   // ---- Sessions (PTY) ----
   ipcMain.handle('session:create', (event, opts: SessionOptions) =>
@@ -130,6 +132,9 @@ export function registerIpc(): void {
   // ---- Code viewer window ----
   ipcMain.handle('window:openCode', (_e, cwd: string, file: string) => openCodeWindow(cwd, file))
   ipcMain.handle('window:openPr', (_e, cwd: string, num: number) => openPrWindow(cwd, num))
+  ipcMain.handle('window:openDiff', (_e, cwd: string, kind: string, ref: string, file: string) =>
+    openDiffWindow(cwd, kind, ref, file),
+  )
   ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('app:reveal', (_e, p: string) => shell.openPath(p))
   ipcMain.handle('app:openInEditor', async (_e, p: string) => {

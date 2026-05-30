@@ -17,7 +17,7 @@ const STATUS_LABEL: Record<FileChange['status'], string> = {
 /* ----------------------------- Changes ----------------------------- */
 
 function FileRow({ file, staged }: { file: FileChange; staged: boolean }) {
-  const { stage, unstage, openDiff } = useApp()
+  const { stage, unstage, openDiff, discardFile } = useApp()
   return (
     <div className="sc-file" onClick={() => openDiff(file.path, staged)}>
       <span className={`sc-status ${file.status}`}>{STATUS_LABEL[file.status]}</span>
@@ -28,6 +28,16 @@ function FileRow({ file, staged }: { file: FileChange; staged: boolean }) {
           {file.deletions ? <span className="del">−{file.deletions}</span> : null}
         </span>
       )}
+      <span
+        className="icon-btn sc-discard"
+        title="Discard changes"
+        onClick={(e) => {
+          e.stopPropagation()
+          discardFile(file.path)
+        }}
+      >
+        <Icon name="back" size={13} />
+      </span>
       <span
         className="icon-btn sc-toggle"
         title={staged ? 'Unstage' : 'Stage'}

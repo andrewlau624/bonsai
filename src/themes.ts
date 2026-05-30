@@ -386,12 +386,27 @@ export const ACCENTS: AccentDef[] = [
   { id: 'amber', name: 'Amber', accent: '#e8b339', press: '#d49f28', ink: '#241a04' },
 ]
 
+export const MONO_FONTS: Record<string, string> = {
+  system: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+  jetbrains: "'JetBrains Mono', ui-monospace, Menlo, monospace",
+  fira: "'Fira Code', ui-monospace, Menlo, monospace",
+  ibm: "'IBM Plex Mono', ui-monospace, Menlo, monospace",
+  commit: "'Commit Mono', ui-monospace, Menlo, monospace",
+  mono45: "'Monaspace Neon', ui-monospace, Menlo, monospace",
+}
+
+const UI_ZOOM: Record<string, string> = { small: '0.9', normal: '1', large: '1.12' }
+
 export interface StyleOptions {
   density: 'comfortable' | 'compact'
   uiFont: keyof typeof UI_FONTS
   corners: keyof typeof CORNERS
   animations: boolean
   accent: string
+  accentColor?: string
+  uiScale?: string
+  monoFont?: string
+  reduceTransparency?: boolean
 }
 
 /** Apply a theme plus the user's structural style choices to the document root. */
@@ -410,12 +425,23 @@ export function applyTheme(id: string, opts: StyleOptions): void {
     root.style.setProperty('--radius-sm', corner.sm)
   }
 
-  // Accent override ('theme' keeps the theme's own accent).
-  const accent = ACCENTS.find((a) => a.id === opts.accent)
-  if (accent && accent.id !== 'theme') {
-    root.style.setProperty('--accent', accent.accent)
-    root.style.setProperty('--accent-press', accent.press)
-    root.style.setProperty('--accent-ink', accent.ink)
+  // Accent override ('theme' keeps the theme's own accent; 'custom' uses hex).
+  if (opts.accent === 'custom' && opts.accentColor) {
+    root.style.setProperty('--accent', opts.accentColor)
+    root.style.setProperty('--accent-press', opts.accentColor)
+    root.style.setProperty('--accent-ink', contrastInk(opts.accentColor))
+  } else {
+    const accent = ACCENTS.find((a) => a.id === opts.accent)
+    if (accent && accent.id !== 'theme') {
+      root.style.setProperty('--accent', accent.accent)
+      root.style.setProperty('--accent-press', accent.press)
+      root.style.setProperty('--accent-ink', accent.ink)
+    }
+  }
+
+  // Monospace font + UI scale.
+  if (opts.monoFont && MONO_FONTS[opts.monoFont]) {
+    root.style.setProperty('--font-mono', MONO_FONTS[opts.monoFont])
   }
 
   root.dataset.theme = theme.id
@@ -423,4 +449,44 @@ export function applyTheme(id: string, opts: StyleOptions): void {
   root.dataset.density = opts.density
   root.dataset.animations = opts.animations ? 'on' : 'off'
   root.dataset.uifont = opts.uiFont
+  root.dataset.transparency = opts.reduceTransparency ? 'off' : 'on'
+  root.style.setProperty('zoom', UI_ZOOM[opts.uiScale ?? 'normal'] ?? '1')
+}
+
+/** Apply a full AppConfig-shaped object's appearance to the document. */
+export function applyConfigStyle(c: {
+  theme: string
+  density: 'comfortable' | 'compact'
+  uiFont: string
+  corners: string
+  animations: boolean
+  accent: string
+  accentColor?: string
+  uiScale?: string
+  monoFont?: string
+  reduceTransparency?: boolean
+}): void {
+  applyTheme(c.theme, {
+    density: c.density,
+    uiFont: c.uiFont,
+    corners: c.corners,
+    animations: c.animations,
+    accent: c.accent,
+    accentColor: c.accentColor,
+    uiScale: c.uiScale,
+    monoFont: c.monoFont,
+    reduceTransparency: c.reduceTransparency,
+  })
+}
+
+/** Pick black or white ink for legible text on an arbitrary accent color. */
+function contrastInk(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return '#04130c'
+  const n = parseInt(m[1], 16)
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return lum > 0.6 ? '#10130a' : '#ffffff'
 }

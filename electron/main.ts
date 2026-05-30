@@ -79,6 +79,28 @@ export function openPrWindow(cwd: string, num: number): void {
   w.on('closed', () => prWindows.delete(key))
 }
 
+/** Open a single file's diff (from a PR or commit) in its own window. */
+export function openDiffWindow(cwd: string, kind: string, ref: string, file: string): void {
+  const w = new BrowserWindow({
+    width: 1000,
+    height: 820,
+    backgroundColor: '#0b0f14',
+    titleBarStyle: 'hiddenInset',
+    title: `Bonsai — ${file}`,
+    webPreferences: {
+      preload: path.join(DIST_ELECTRON, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  })
+  const params =
+    `view=diff&cwd=${encodeURIComponent(cwd)}&kind=${encodeURIComponent(kind)}` +
+    `&ref=${encodeURIComponent(ref)}&file=${encodeURIComponent(file)}`
+  if (DEV_SERVER_URL) w.loadURL(`${DEV_SERVER_URL}?${params}`)
+  else w.loadFile(path.join(DIST_RENDERER, 'index.html'), { search: params })
+}
+
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1280,
