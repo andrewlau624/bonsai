@@ -1,5 +1,16 @@
 import { create } from 'zustand'
-import type { Repo, Branch, TabState, Worktree, GitStatus, DirEntry } from '../shared/types'
+import type {
+  Repo,
+  Branch,
+  TabState,
+  Worktree,
+  GitStatus,
+  DirEntry,
+  AppConfig,
+  Profile,
+} from '../shared/types'
+import { applyTheme } from './themes'
+import { modeValue } from './modes'
 
 let tabCounter = 0
 const nextTabId = () => `t${Date.now()}-${++tabCounter}`
@@ -46,6 +57,10 @@ interface AppState {
   branchFilter: string
   modal: Modal
 
+  // Config / settings
+  config: AppConfig | null
+  settingsOpen: boolean
+
   init: () => Promise<void>
   addRepo: () => Promise<void>
   removeRepo: (id: string) => Promise<void>
@@ -78,7 +93,17 @@ interface AppState {
   openModal: (m: Modal) => void
   closeModal: () => void
   createBranch: (repoId: string, name: string) => Promise<void>
+  requestDeleteBranch: (repoId: string, branch: string) => void
   deleteBranch: (repoId: string, branch: string) => Promise<void>
+
+  // Config
+  mode: (key: string) => boolean
+  setSettingsOpen: (v: boolean) => void
+  updateConfig: (patch: Partial<AppConfig>) => Promise<void>
+  setMode: (key: string, value: boolean) => Promise<void>
+  saveProfile: (name: string) => Promise<void>
+  applyProfile: (id: string) => Promise<void>
+  deleteProfile: (id: string) => Promise<void>
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -101,7 +126,14 @@ export const useApp = create<AppState>((set, get) => ({
   branchFilter: '',
   modal: null,
 
+  config: null,
+  settingsOpen: false,
+
   init: async () => {
+    const config = await window.bonsai.config.get()
+    applyTheme(config.theme, config.density)
+    set({ config })
+
     const repos = await window.bonsai.repos.list()
     const { tabs, layout } = await window.bonsai.layout.load()
     set({
@@ -159,6 +191,13 @@ export const useApp = create<AppState>((set, get) => ({
 
   openBranch: async (repoId, branch, forceNewTab = false) => {
     const key = branchKey(repoId, branch)
+    if (get().mode('autoFetchOnOpen')) {
+      try {
+        await window.bonsai.git.fetch(repoId)
+      } catch {
+        /* offline / no remote — ignore */
+      }
+    }
     const existing = get().tabs.find((t) => t.repoId === repoId && t.branch === branch)
     if (existing && !forceNewTab) {
       set((s) => ({
@@ -285,7 +324,7 @@ export const useApp = create<AppState>((set, get) => ({
     set({ syncing: 'Committing' })
     try {
       const status = get().statusByCwd[tab.cwd]
-      if (status && !status.files.some((f) => f.staged)) {
+      if (get().mode('stageAllOnCommit') && status && !status.files.some((f) => f.staged)) {
         await window.bonsai.git.stageAll(tab.cwd)
       }
       await window.bonsai.git.commit(tab.cwd, msg)
@@ -301,6 +340,9 @@ export const useApp = create<AppState>((set, get) => ({
   sync: async (op) => {
     const tab = get().activeTab()
     if (!tab) return
+    if (op === 'push' && get().mode('confirmBeforePush')) {
+      if (!confirm(`Push ${tab.branch} to its remote?`)) return
+    }
     set({ syncing: op === 'push' ? 'Pushing' : op === 'pull' ? 'Pulling' : 'Fetching' })
     try {
       if (op === 'push') await window.bonsai.git.push(tab.cwd)
@@ -363,6 +405,14 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
+  requestDeleteBranch: (repoId, branch) => {
+    if (get().mode('confirmBeforeDelete')) {
+      set({ modal: { type: 'confirmDelete', repoId, branch } })
+    } else {
+      void get().deleteBranch(repoId, branch)
+    }
+  },
+
   deleteBranch: async (repoId, branch) => {
     try {
       await window.bonsai.git.deleteBranch(repoId, branch, true)
@@ -375,6 +425,57 @@ export const useApp = create<AppState>((set, get) => ({
     } catch (err) {
       alert(`Could not delete branch:\n${(err as Error).message}`)
     }
+  },
+
+  // ---- Config / settings ----
+  mode: (key) => modeValue(get().config?.modes ?? {}, key),
+
+  setSettingsOpen: (v) => set({ settingsOpen: v }),
+
+  updateConfig: async (patch) => {
+    const next = await window.bonsai.config.set(patch)
+    applyTheme(next.theme, next.density)
+    set({ config: next })
+  },
+
+  setMode: async (key, value) => {
+    const cur = get().config
+    if (!cur) return
+    await get().updateConfig({ modes: { ...cur.modes, [key]: value } })
+  },
+
+  saveProfile: async (name) => {
+    const c = get().config
+    if (!c || !name.trim()) return
+    const profile: Profile = {
+      id: `p${Date.now()}`,
+      name: name.trim(),
+      theme: c.theme,
+      density: c.density,
+      fontSize: c.fontSize,
+      cursorBlink: c.cursorBlink,
+      modes: { ...c.modes },
+    }
+    await get().updateConfig({ profiles: [...c.profiles, profile] })
+  },
+
+  applyProfile: async (id) => {
+    const c = get().config
+    const p = c?.profiles.find((x) => x.id === id)
+    if (!p) return
+    await get().updateConfig({
+      theme: p.theme,
+      density: p.density,
+      fontSize: p.fontSize,
+      cursorBlink: p.cursorBlink,
+      modes: { ...p.modes },
+    })
+  },
+
+  deleteProfile: async (id) => {
+    const c = get().config
+    if (!c) return
+    await get().updateConfig({ profiles: c.profiles.filter((p) => p.id !== id) })
   },
 }))
 

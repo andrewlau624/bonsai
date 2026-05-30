@@ -5,15 +5,37 @@ import { Breadcrumb } from './components/Breadcrumb'
 import { TerminalView } from './components/TerminalView'
 import { SourceControl } from './components/SourceControl'
 import { Modal } from './components/Modal'
+import { Settings } from './components/Settings'
 import { Icon } from './components/Icon'
 
 export default function App() {
-  const { tabs, activeTabId, closeTab, init, scOpen, toggleSourceControl, activeTab, statusByCwd } =
-    useApp()
+  const {
+    tabs,
+    activeTabId,
+    closeTab,
+    init,
+    scOpen,
+    toggleSourceControl,
+    activeTab,
+    statusByCwd,
+    setSettingsOpen,
+  } = useApp()
 
   useEffect(() => {
     void init()
   }, [init])
+
+  useEffect(() => {
+    const off = window.bonsai.onOpenSettings(() => setSettingsOpen(true))
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      off()
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [setSettingsOpen])
 
   const tab = activeTab()
   const status = tab ? statusByCwd[tab.cwd] : undefined
@@ -69,6 +91,7 @@ export default function App() {
         </div>
       </main>
       <Modal />
+      <Settings />
     </div>
   )
 }

@@ -1,7 +1,7 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, shell, BrowserWindow } from 'electron'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Repo, SessionOptions, TabState, LayoutState } from '../shared/types'
+import type { Repo, SessionOptions, TabState, LayoutState, AppConfig } from '../shared/types'
 import * as gitOps from './git'
 import * as ptyMgr from './pty'
 import * as store from './store'
@@ -52,7 +52,8 @@ export function registerIpc(): void {
   ipcMain.handle('worktree:ensure', async (_e, repoId: string, branch: string) => {
     const repo = store.getRepos().find((r) => r.id === repoId)
     if (!repo) throw new Error('Unknown repo')
-    const wt = await gitOps.ensureWorktree(repo.path, repo.name, branch)
+    const carryEnv = store.getConfig().modes.autoCarryEnv !== false
+    const wt = await gitOps.ensureWorktree(repo.path, repo.name, branch, carryEnv)
     return { ...wt, repoId }
   })
 
@@ -102,4 +103,10 @@ export function registerIpc(): void {
   ipcMain.handle('layout:save', (_e, state: { tabs: TabState[]; layout: LayoutState }) =>
     store.setLayout(state),
   )
+
+  // ---- Config ----
+  ipcMain.handle('config:get', () => store.getConfig())
+  ipcMain.handle('config:set', (_e, patch: Partial<AppConfig>) => store.setConfig(patch))
+  ipcMain.handle('config:path', () => store.configPath())
+  ipcMain.handle('config:reveal', () => shell.showItemInFolder(store.configPath()))
 }

@@ -12,7 +12,7 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
     openBranch,
     toggleBranch,
     setActiveTab,
-    openModal,
+    requestDeleteBranch,
   } = useApp()
   const key = branchKey(repo.id, branch.name)
   const branchTabs = tabs.filter((t) => t.repoId === repo.id && t.branch === branch.name)
@@ -61,7 +61,7 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
                 <button
                   className="icon-btn danger-hover"
                   title="Delete branch"
-                  onClick={() => openModal({ type: 'confirmDelete', repoId: repo.id, branch: branch.name })}
+                  onClick={() => requestDeleteBranch(repo.id, branch.name)}
                 >
                   <Icon name="trash" size={13} />
                 </button>
@@ -138,7 +138,8 @@ function RepoNode({ repo }: { repo: Repo }) {
 }
 
 export function Sidebar() {
-  const { repos, addRepo, searchOpen, setSearchOpen, branchFilter, setBranchFilter } = useApp()
+  const { repos, addRepo, searchOpen, setSearchOpen, branchFilter, setBranchFilter, setSettingsOpen } =
+    useApp()
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -156,6 +157,9 @@ export function Sidebar() {
           </button>
           <button className="icon-btn" title="Add repository" onClick={addRepo}>
             <Icon name="plus" size={16} />
+          </button>
+          <button className="icon-btn" title="Settings (⌘,)" onClick={() => setSettingsOpen(true)}>
+            <Icon name="settings" size={15} />
           </button>
         </div>
       </div>

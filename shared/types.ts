@@ -73,6 +73,27 @@ export interface TabState {
   title: string
 }
 
+export interface Profile {
+  id: string
+  name: string
+  theme: string
+  density: 'comfortable' | 'compact'
+  fontSize: number
+  cursorBlink: boolean
+  modes: Record<string, boolean>
+}
+
+/** User-tunable configuration, persisted and editable as a JSON file. */
+export interface AppConfig {
+  theme: string
+  density: 'comfortable' | 'compact'
+  fontSize: number
+  cursorBlink: boolean
+  /** Overrides for the mode toggles defined in the renderer (key -> on/off). */
+  modes: Record<string, boolean>
+  profiles: Profile[]
+}
+
 /** Persisted UI layout, reloaded on next launch. */
 export interface LayoutState {
   expandedRepoIds: string[]
@@ -118,4 +139,11 @@ export interface BonsaiApi {
     load(): Promise<{ tabs: TabState[]; layout: LayoutState }>
     save(state: { tabs: TabState[]; layout: LayoutState }): Promise<void>
   }
+  config: {
+    get(): Promise<AppConfig>
+    set(patch: Partial<AppConfig>): Promise<AppConfig>
+    path(): Promise<string>
+    reveal(): Promise<void>
+  }
+  onOpenSettings(cb: () => void): () => void
 }

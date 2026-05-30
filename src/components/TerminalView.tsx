@@ -3,21 +3,10 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import type { TabState } from '../../shared/types'
+import { useApp } from '../store'
+import { getTheme } from '../themes'
 
-const THEME = {
-  background: '#0b0f14',
-  foreground: '#e6edf3',
-  cursor: '#45b884',
-  selectionBackground: '#264f78',
-  black: '#484f58',
-  red: '#ff7b72',
-  green: '#3fb950',
-  yellow: '#d29922',
-  blue: '#58a6ff',
-  magenta: '#bc8cff',
-  cyan: '#39c5cf',
-  white: '#b1bac4',
-}
+const FONT_FAMILY = 'Menlo, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace'
 
 /**
  * One xterm.js instance bound to one PTY session for the lifetime of a tab.
@@ -30,14 +19,18 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
   const fitRef = useRef<FitAddon | null>(null)
   const sessionIdRef = useRef<string | null>(null)
 
+  const config = useApp((s) => s.config)
+  const themeId = config?.theme ?? 'modern'
+  const fontSize = config?.fontSize ?? 13
+  const cursorBlink = config?.cursorBlink ?? true
+
   useEffect(() => {
     const term = new XTerm({
-      fontFamily:
-        'Menlo, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace',
-      fontSize: 13,
-      cursorBlink: true,
+      fontFamily: FONT_FAMILY,
+      fontSize,
+      cursorBlink,
       allowProposedApi: true,
-      theme: THEME,
+      theme: getTheme(themeId).terminal,
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
@@ -101,6 +94,22 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Live-apply theme / font / cursor changes from Settings.
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+    term.options.theme = getTheme(themeId).terminal
+    term.options.fontSize = fontSize
+    term.options.cursorBlink = cursorBlink
+    try {
+      fitRef.current?.fit()
+      const id = sessionIdRef.current
+      if (id) window.bonsai.session.resize(id, term.cols, term.rows)
+    } catch {
+      /* not visible yet */
+    }
+  }, [themeId, fontSize, cursorBlink])
 
   useEffect(() => {
     if (!active) return

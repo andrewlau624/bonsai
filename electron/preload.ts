@@ -9,6 +9,7 @@ import type {
   SessionOptions,
   TabState,
   LayoutState,
+  AppConfig,
 } from '../shared/types'
 
 const api: BonsaiApi = {
@@ -66,6 +67,17 @@ const api: BonsaiApi = {
     load: () =>
       ipcRenderer.invoke('layout:load') as Promise<{ tabs: TabState[]; layout: LayoutState }>,
     save: (state) => ipcRenderer.invoke('layout:save', state) as Promise<void>,
+  },
+  config: {
+    get: () => ipcRenderer.invoke('config:get') as Promise<AppConfig>,
+    set: (patch) => ipcRenderer.invoke('config:set', patch) as Promise<AppConfig>,
+    path: () => ipcRenderer.invoke('config:path') as Promise<string>,
+    reveal: () => ipcRenderer.invoke('config:reveal') as Promise<void>,
+  },
+  onOpenSettings: (cb) => {
+    const listener = () => cb()
+    ipcRenderer.on('menu:open-settings', listener)
+    return () => ipcRenderer.removeListener('menu:open-settings', listener)
   },
 }
 

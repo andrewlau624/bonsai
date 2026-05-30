@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import path from 'node:path'
 import { registerIpc } from './ipc'
 import { killAll } from './pty'
+import { buildMenu } from './menu'
 
 // vite-plugin-electron sets this in dev; undefined in a packaged build.
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
@@ -43,6 +44,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerIpc()
+  buildMenu()
   createWindow()
 
   app.on('activate', () => {

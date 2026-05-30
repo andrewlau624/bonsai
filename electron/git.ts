@@ -76,6 +76,7 @@ export async function ensureWorktree(
   repoPath: string,
   repoName: string,
   branch: string,
+  carryEnv = true,
 ): Promise<Worktree> {
   const g = git(repoPath)
   const cur = await currentBranch(repoPath)
@@ -86,7 +87,7 @@ export async function ensureWorktree(
       branch,
       path: repoPath,
       primary: true,
-      carriedEnvFiles: carryEnvFiles(repoPath, repoPath),
+      carriedEnvFiles: carryEnv ? carryEnvFiles(repoPath, repoPath) : [],
     }
   }
 
@@ -100,7 +101,7 @@ export async function ensureWorktree(
     worktreePath = dir
   }
 
-  const carriedEnvFiles = carryEnvFiles(repoPath, worktreePath)
+  const carriedEnvFiles = carryEnv ? carryEnvFiles(repoPath, worktreePath) : []
   return { repoId: '', branch, path: worktreePath, primary: false, carriedEnvFiles }
 }
 

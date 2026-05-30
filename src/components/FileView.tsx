@@ -19,7 +19,9 @@ export function FileView({
   dir: string
   entries: DirEntry[]
 }) {
-  const { openFile, openDir } = useApp()
+  const { openFile, openDir, mode } = useApp()
+  const showHidden = mode('showHiddenFiles')
+  const visible = showHidden ? entries : entries.filter((e) => !e.name.startsWith('.'))
   const lines = content.split('\n')
   const crumbs = dir ? dir.split('/') : []
 
@@ -51,7 +53,7 @@ export function FileView({
               <Icon name="folder" size={13} /> ..
             </button>
           )}
-          {entries.map((e) => (
+          {visible.map((e) => (
             <button
               key={e.path}
               className={`dir-entry ${e.path === file ? 'current' : ''}`}
