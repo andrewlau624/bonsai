@@ -89,6 +89,7 @@ export function CodeViewer({ cwd, initialFile }: { cwd: string; initialFile: str
 
   return (
     <div className="cv">
+      <div className="win-drag" />
       {treeOpen && (
         <>
           <aside className="cv-tree" style={{ width: treeWidth }}>

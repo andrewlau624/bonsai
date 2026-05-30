@@ -2489,3 +2489,17 @@ kbd {
   color: var(--text-dim);
   max-height: 60vh;
 }
+
+/* ---------- Window drag strip (frameless pop-out windows) ---------- */
+.win-drag {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  -webkit-app-region: drag;
+  z-index: 100;
+}
+.win-drag * {
+  -webkit-app-region: no-drag;
+}

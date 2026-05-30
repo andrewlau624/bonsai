@@ -31,10 +31,17 @@ export function PrWindow({ cwd, num }: { cwd: string; num: number }) {
     void reload()
   }, [reload])
 
-  if (!detail) return <div className="cv-loading">Loading pull request…</div>
+  if (!detail)
+    return (
+      <>
+        <div className="win-drag" />
+        <div className="cv-loading">Loading pull request…</div>
+      </>
+    )
 
   return (
     <div className="pr-window">
+      <div className="win-drag" />
       <PrView
         cwd={cwd}
         detail={detail}
