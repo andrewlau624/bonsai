@@ -1,8 +1,12 @@
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, Menu, nativeImage } from 'electron'
 import path from 'node:path'
+import fs from 'node:fs'
 import { registerIpc } from './ipc'
 import { killAll } from './pty'
 import { buildMenu } from './menu'
+
+const ICON_PATH = path.join(app.getAppPath(), 'build', 'icon.png')
+const APP_ICON = fs.existsSync(ICON_PATH) ? nativeImage.createFromPath(ICON_PATH) : undefined
 
 // vite-plugin-electron sets this in dev; undefined in a packaged build.
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
@@ -122,6 +126,7 @@ function createWindow(): void {
     backgroundColor: '#0d1117',
     titleBarStyle: 'hiddenInset',
     title: 'Bonsai',
+    icon: APP_ICON,
     webPreferences: {
       preload: path.join(DIST_ELECTRON, 'preload.js'),
       contextIsolation: true,
@@ -182,6 +187,7 @@ app.on('web-contents-created', (_e, contents) => {
 })
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin' && app.dock && APP_ICON) app.dock.setIcon(APP_ICON)
   registerIpc()
   buildMenu()
   createWindow()

@@ -258,7 +258,10 @@ export const useApp = create<AppState>((set, get) => ({
       const branches = await window.bonsai.repos.branches(id)
       set((s) => ({ branchesByRepo: { ...s.branchesByRepo, [id]: branches } }))
     }
-    for (const r of repos) void get().loadCommands(r.id)
+    for (const r of repos) {
+      void get().loadCommands(r.id)
+      void get().loadBranchPrefs(r.id)
+    }
     void get().refreshStatus()
     void get().loadRunnables()
   },
