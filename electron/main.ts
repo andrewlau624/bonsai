@@ -1,9 +1,14 @@
 import { app, BrowserWindow, Menu, nativeImage } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
+import { fixPath } from './fix-path'
 import { registerIpc } from './ipc'
 import { killAll } from './pty'
 import { buildMenu } from './menu'
+
+// Repair PATH before anything shells out to gh/git — a GUI launch (Finder/Dock)
+// inherits a minimal PATH that omits Homebrew et al. See electron/fix-path.ts.
+fixPath()
 
 const ICON_PATH = path.join(app.getAppPath(), 'build', 'icon.png')
 const APP_ICON = fs.existsSync(ICON_PATH) ? nativeImage.createFromPath(ICON_PATH) : undefined
