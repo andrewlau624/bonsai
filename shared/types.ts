@@ -254,6 +254,8 @@ export interface BonsaiApi {
     push(cwd: string): Promise<string>
     pull(cwd: string): Promise<string>
     fetch(repoId: string): Promise<void>
+    /** Switch the primary checkout's HEAD to `branch` (git switch). */
+    checkout(repoId: string, branch: string): Promise<void>
     createBranch(repoId: string, name: string, from?: string): Promise<void>
     deleteBranch(repoId: string, name: string, force?: boolean): Promise<void>
     diffFile(cwd: string, file: string, staged: boolean): Promise<string>
@@ -297,6 +299,11 @@ export interface BonsaiApi {
     /** Included branch names, or null if the repo hasn't been curated (= show all). */
     get(repoId: string): Promise<string[] | null>
     set(repoId: string, names: string[]): Promise<void>
+  }
+  branchColors: {
+    /** Map of branch name -> color id for a repo (empty if none set). */
+    get(repoId: string): Promise<Record<string, string>>
+    set(repoId: string, map: Record<string, string>): Promise<void>
   }
   pr: {
     list(cwd: string): Promise<PrStatus>

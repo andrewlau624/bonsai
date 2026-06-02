@@ -3,6 +3,7 @@ import type { TabState } from '../../shared/types'
 import { useApp, tabDisplayName, tabBusy } from '../store'
 import { Icon } from './Icon'
 import { previewLabel } from './PortsMenu'
+import { resolveBranchColor } from '../colors'
 
 /**
  * Two-row tab bar above the terminal, matching the Terminal/Preview pane tabs:
@@ -18,6 +19,8 @@ export function TabStrip() {
   const activeTabId = useApp((s) => s.activeTabId)
   const repos = useApp((s) => s.repos)
   const processByTab = useApp((s) => s.processByTab)
+  const branchesByRepo = useApp((s) => s.branchesByRepo)
+  const branchColorsByRepo = useApp((s) => s.branchColorsByRepo)
   const setActiveTab = useApp((s) => s.setActiveTab)
   const closeTab = useApp((s) => s.closeTab)
   const togglePinTab = useApp((s) => s.togglePinTab)
@@ -227,12 +230,22 @@ export function TabStrip() {
           })()}
         {branchOrder.map((br) => {
           const terms = termsOf(br)
-          if (terms.length === 1) return chip(terms[0])
           const key = collapseKey(br)
           const isCollapsed = collapsed.has(key)
           const hasActive = terms.some((t) => t.id === activeTabId)
+          const multi = terms.length > 1
+          const repoBranches = activeRepoId ? branchesByRepo[activeRepoId] ?? [] : []
+          const bi = repoBranches.findIndex((b) => b.name === br)
+          const color = resolveBranchColor(
+            activeRepoId ? branchColorsByRepo[activeRepoId]?.[br] : undefined,
+            bi >= 0 ? bi : branchOrder.indexOf(br),
+          )
           return (
-            <div className={`branch-grp${hasActive ? ' has-active' : ''}`} key={br}>
+            <div
+              className={`branch-grp colored${hasActive ? ' has-active' : ''}`}
+              key={br}
+              style={{ '--branch-color': color } as React.CSSProperties}
+            >
               <button
                 className="branch-hd"
                 onClick={() => toggleCollapse(key)}
@@ -243,7 +256,7 @@ export function TabStrip() {
                 <span className="tab-name">{br}</span>
                 <span className="tab-count">{terms.length}</span>
               </button>
-              {!isCollapsed && terms.map((t, i) => chip(t, i))}
+              {!isCollapsed && terms.map((t, i) => chip(t, multi ? i : undefined))}
             </div>
           )
         })}

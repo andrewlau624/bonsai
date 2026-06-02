@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { WebglAddon } from '@xterm/addon-webgl'
 import type { TabState } from '../../shared/types'
 import { useApp } from '../store'
 import { getTheme } from '../themes'
@@ -50,6 +51,16 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     term.loadAddon(fit)
     term.loadAddon(new WebLinksAddon())
     term.open(containerRef.current!)
+    // GPU-accelerated renderer. Must load after open(); silently falls back to
+    // the default DOM renderer when WebGL2 is unavailable. Dispose on context
+    // loss so xterm reverts to the DOM renderer instead of rendering nothing.
+    try {
+      const webgl = new WebglAddon()
+      webgl.onContextLoss(() => webgl.dispose())
+      term.loadAddon(webgl)
+    } catch {
+      /* WebGL2 unavailable — DOM renderer */
+    }
     try {
       fit.fit()
     } catch {
@@ -57,6 +68,18 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     }
     termRef.current = term
     fitRef.current = fit
+
+    // Shift+Enter inserts a newline instead of submitting. We emit meta+Enter
+    // (ESC + CR) — the sequence Claude Code's terminal-setup uses; readline and
+    // most CLIs treat it as "insert newline" rather than "accept line".
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type === 'keydown' && e.key === 'Enter' && e.shiftKey) {
+        const id = sessionIdRef.current
+        if (id) window.bonsai.session.write(id, '\x1b\r')
+        return false
+      }
+      return true
+    })
 
     let disposed = false
     let offData = () => {}

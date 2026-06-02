@@ -9,6 +9,8 @@ interface Schema {
   commands: Record<string, SavedCommand[]>
   usage: Record<string, Record<string, number>>
   branchPrefs: Record<string, string[]>
+  /** repoId -> { branchName -> color id } */
+  branchColors: Record<string, Record<string, string>>
 }
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -43,6 +45,7 @@ const store = new Store<Schema>({
     commands: {},
     usage: {},
     branchPrefs: {},
+    branchColors: {},
   },
 })
 
@@ -95,6 +98,14 @@ export function getBranchPrefs(repoId: string): string[] | null {
 
 export function setBranchPrefs(repoId: string, names: string[]): void {
   store.set('branchPrefs', { ...store.get('branchPrefs'), [repoId]: names })
+}
+
+export function getBranchColors(repoId: string): Record<string, string> {
+  return store.get('branchColors')[repoId] ?? {}
+}
+
+export function setBranchColors(repoId: string, map: Record<string, string>): void {
+  store.set('branchColors', { ...store.get('branchColors'), [repoId]: map })
 }
 
 export function bumpUsage(repoId: string, command: string): Record<string, number> {

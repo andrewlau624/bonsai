@@ -113,6 +113,7 @@ interface AppState {
   branchFilter: string
   modal: Modal
   branchPrefsByRepo: Record<string, string[] | null>
+  branchColorsByRepo: Record<string, Record<string, string>>
   branchPicker: string | null // repoId whose picker is open
 
   config: AppConfig | null
@@ -127,6 +128,8 @@ interface AppState {
   addRepo: () => Promise<void>
   removeRepo: (id: string) => Promise<void>
   toggleRepo: (id: string) => Promise<void>
+  refreshRepo: (id: string) => Promise<void>
+  checkoutBranch: (repoId: string, branch: string) => Promise<void>
   reloadBranches: (repoId: string) => Promise<void>
   openBranch: (repoId: string, branch: string, forceNewTab?: boolean) => Promise<void>
   toggleBranch: (repoId: string, branch: string) => void
@@ -203,6 +206,8 @@ interface AppState {
   requestDeleteBranch: (repoId: string, branch: string) => void
   deleteBranch: (repoId: string, branch: string) => Promise<void>
   loadBranchPrefs: (repoId: string) => Promise<void>
+  loadBranchColors: (repoId: string) => Promise<void>
+  setBranchColor: (repoId: string, branch: string, colorId: string | null) => Promise<void>
   openBranchPicker: (repoId: string) => void
   closeBranchPicker: () => void
   setIncludedBranches: (repoId: string, names: string[]) => Promise<void>
@@ -255,6 +260,7 @@ export const useApp = create<AppState>((set, get) => ({
   branchFilter: '',
   modal: null,
   branchPrefsByRepo: {},
+  branchColorsByRepo: {},
   branchPicker: null,
 
   config: null,
@@ -286,6 +292,7 @@ export const useApp = create<AppState>((set, get) => ({
     for (const r of repos) {
       void get().loadCommands(r.id)
       void get().loadBranchPrefs(r.id)
+      void get().loadBranchColors(r.id)
     }
     void get().refreshStatus()
     void get().loadRunnables()
@@ -326,6 +333,65 @@ export const useApp = create<AppState>((set, get) => ({
     get().persist()
   },
 
+  // Fetch from the remote, then reload the branch list so new/updated branches
+  // and HEAD state show up. Offline (no remote) just falls through to a reload.
+  refreshRepo: async (id) => {
+    set((s) => ({ loading: new Set(s.loading).add(id) }))
+    try {
+      await window.bonsai.git.fetch(id)
+    } catch {
+      /* offline / no remote */
+    }
+    try {
+      await get().reloadBranches(id)
+    } finally {
+      set((s) => {
+        const loading = new Set(s.loading)
+        loading.delete(id)
+        return { loading }
+      })
+    }
+  },
+
+  // Switch the primary checkout's HEAD. Because each opened branch lives in its
+  // own worktree, checking one out as HEAD means removing that worktree — so we
+  // confirm and then close its terminals once git frees it.
+  checkoutBranch: async (repoId, branch) => {
+    const key = branchKey(repoId, branch)
+    const tabsHere = get().tabs.filter((t) => t.repoId === repoId && t.branch === branch)
+    if (
+      tabsHere.length &&
+      !confirm(
+        `"${branch}" is open in a worktree. Making it the primary HEAD will close its ` +
+          `${tabsHere.length} terminal${tabsHere.length > 1 ? 's' : ''} and remove that worktree.\n\n` +
+          `Continue?`,
+      )
+    ) {
+      return
+    }
+    try {
+      await window.bonsai.git.checkout(repoId, branch)
+      // git freed the worktree — drop its terminals and stale worktree mapping.
+      for (const t of tabsHere) window.bonsai.session.kill(t.id)
+      set((s) => {
+        const tabs = s.tabs.filter((t) => !(t.repoId === repoId && t.branch === branch))
+        const worktrees = { ...s.worktrees }
+        delete worktrees[key]
+        const processByTab = { ...s.processByTab }
+        for (const t of tabsHere) delete processByTab[t.id]
+        const activeTabId = tabsHere.some((t) => t.id === s.activeTabId)
+          ? (tabs[tabs.length - 1]?.id ?? null)
+          : s.activeTabId
+        return { tabs, worktrees, processByTab, activeTabId }
+      })
+      get().persist()
+      await get().reloadBranches(repoId)
+      void get().refreshStatus()
+    } catch (err) {
+      alert(`Could not switch to ${branch}:\n${(err as Error).message}`)
+    }
+  },
+
   reloadBranches: async (repoId) => {
     const branches = await window.bonsai.repos.branches(repoId)
     set((s) => ({ branchesByRepo: { ...s.branchesByRepo, [repoId]: branches } }))
@@ -335,6 +401,21 @@ export const useApp = create<AppState>((set, get) => ({
   loadBranchPrefs: async (repoId) => {
     const prefs = await window.bonsai.branchPrefs.get(repoId)
     set((s) => ({ branchPrefsByRepo: { ...s.branchPrefsByRepo, [repoId]: prefs } }))
+  },
+
+  loadBranchColors: async (repoId) => {
+    const colors = await window.bonsai.branchColors.get(repoId)
+    set((s) => ({ branchColorsByRepo: { ...s.branchColorsByRepo, [repoId]: colors } }))
+  },
+
+  // Tag (or clear, when colorId is null) a branch's color, persisting the whole
+  // per-repo map.
+  setBranchColor: async (repoId, branch, colorId) => {
+    const map = { ...(get().branchColorsByRepo[repoId] ?? {}) }
+    if (colorId) map[branch] = colorId
+    else delete map[branch]
+    await window.bonsai.branchColors.set(repoId, map)
+    set((s) => ({ branchColorsByRepo: { ...s.branchColorsByRepo, [repoId]: map } }))
   },
 
   openBranchPicker: (repoId) => set({ branchPicker: repoId }),

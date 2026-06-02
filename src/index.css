@@ -372,6 +372,99 @@ button {
     transform: rotate(360deg);
   }
 }
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ---- Branch color tagging ---- */
+.color-pick {
+  position: relative;
+  display: inline-flex;
+}
+/* Keep the actions row visible while its color menu is open. */
+.row-actions:has(.color-menu) {
+  opacity: 1;
+}
+/* Self-contained round trigger — fixed pixel box, never stretches. */
+.swatch-btn {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  align-self: center;
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s;
+}
+.swatch-btn:hover {
+  transform: scale(1.15);
+}
+.swatch-btn.empty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--text-faint);
+}
+.color-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+.color-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 51;
+  margin-top: 4px;
+  padding: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 104px;
+  background: var(--bg-elev);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.swatch-opt {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s;
+}
+.swatch-opt:hover {
+  transform: scale(1.15);
+}
+.swatch-opt.none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--text-dim);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+/* Translucent color wash on the branch row only (not its terminal rows). */
+.branch.colored > .branch-row {
+  background: color-mix(in srgb, var(--branch-color) 13%, transparent);
+}
+.branch.colored > .branch-row:hover {
+  background: color-mix(in srgb, var(--branch-color) 22%, transparent);
+}
+.branch.colored .row-label {
+  color: var(--text);
+}
+/* Selected (manually-set) color in the picker. */
+.swatch-opt.sel {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
 
 /* ---------- Workspace ---------- */
 .workspace {
@@ -478,6 +571,26 @@ button {
 }
 .branch-grp.has-active .branch-hd {
   color: var(--text-dim);
+}
+/* Color-tagged branch group: translucent color wash behind the whole group
+ * (header + every tab), a touch stronger on the active tab. */
+.branch-grp.colored {
+  background: color-mix(in srgb, var(--branch-color) 13%, transparent);
+}
+/* Brighter labels so text reads clearly on the color wash (no muddy gray). */
+.branch-grp.colored .branch-hd,
+.branch-grp.colored .tab-chip {
+  color: var(--text);
+}
+.branch-grp.colored .branch-hd svg + svg {
+  color: var(--branch-color);
+}
+.branch-grp.colored .tab-chip.active {
+  background: color-mix(in srgb, var(--branch-color) 18%, transparent);
+  border-bottom-color: var(--branch-color);
+}
+.branch-grp.colored .tab-chip.active svg:first-child {
+  color: var(--branch-color);
 }
 
 /* Terminal tab — same flat underline tab as Terminal/Preview. */

@@ -82,6 +82,9 @@ export function registerIpc(): void {
   ipcMain.handle('git:push', (_e, cwd: string) => gitOps.push(cwd))
   ipcMain.handle('git:pull', (_e, cwd: string) => gitOps.pull(cwd))
   ipcMain.handle('git:fetch', (_e, repoId: string) => gitOps.fetch(repoPath(repoId)))
+  ipcMain.handle('git:checkout', (_e, repoId: string, branch: string) =>
+    gitOps.checkout(repoPath(repoId), branch),
+  )
   ipcMain.handle('git:createBranch', (_e, repoId: string, name: string, from?: string) =>
     gitOps.createBranch(repoPath(repoId), name, from),
   )
@@ -133,6 +136,10 @@ export function registerIpc(): void {
   ipcMain.handle('branchPrefs:get', (_e, repoId: string) => store.getBranchPrefs(repoId))
   ipcMain.handle('branchPrefs:set', (_e, repoId: string, names: string[]) =>
     store.setBranchPrefs(repoId, names),
+  )
+  ipcMain.handle('branchColors:get', (_e, repoId: string) => store.getBranchColors(repoId))
+  ipcMain.handle('branchColors:set', (_e, repoId: string, map: Record<string, string>) =>
+    store.setBranchColors(repoId, map),
   )
   ipcMain.handle('usage:get', (_e, repoId: string) => store.getUsage(repoId))
   ipcMain.handle('usage:bump', (_e, repoId: string, command: string) =>

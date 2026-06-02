@@ -36,6 +36,8 @@ const api: BonsaiApi = {
     push: (cwd) => ipcRenderer.invoke('git:push', cwd) as Promise<string>,
     pull: (cwd) => ipcRenderer.invoke('git:pull', cwd) as Promise<string>,
     fetch: (repoId) => ipcRenderer.invoke('git:fetch', repoId) as Promise<void>,
+    checkout: (repoId, branch) =>
+      ipcRenderer.invoke('git:checkout', repoId, branch) as Promise<void>,
     createBranch: (repoId, name, from) =>
       ipcRenderer.invoke('git:createBranch', repoId, name, from) as Promise<void>,
     deleteBranch: (repoId, name, force) =>
@@ -102,6 +104,11 @@ const api: BonsaiApi = {
   branchPrefs: {
     get: (repoId) => ipcRenderer.invoke('branchPrefs:get', repoId) as Promise<string[] | null>,
     set: (repoId, names) => ipcRenderer.invoke('branchPrefs:set', repoId, names) as Promise<void>,
+  },
+  branchColors: {
+    get: (repoId) =>
+      ipcRenderer.invoke('branchColors:get', repoId) as Promise<Record<string, string>>,
+    set: (repoId, map) => ipcRenderer.invoke('branchColors:set', repoId, map) as Promise<void>,
   },
   pr: {
     list: (cwd) => ipcRenderer.invoke('pr:list', cwd) as Promise<PrStatus>,

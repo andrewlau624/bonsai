@@ -134,6 +134,39 @@ export async function fetch(repoPath: string): Promise<void> {
   await git(repoPath).raw(['fetch', '--all', '--prune'])
 }
 
+/**
+ * Switch the primary checkout's HEAD to `branch`. If `branch` is currently held
+ * by a managed worktree, that worktree is removed first (git forbids the same
+ * branch checked out in two places) — but only when it's clean, so uncommitted
+ * work is never silently discarded.
+ */
+export async function checkout(repoPath: string, branch: string): Promise<void> {
+  const g = git(repoPath)
+  const heldElsewhere = async () => {
+    const wt = (await listWorktrees(repoPath)).find((w) => w.branch === branch)
+    return wt && path.resolve(wt.path) !== path.resolve(repoPath) ? wt : null
+  }
+
+  const wt = await heldElsewhere()
+  if (wt) {
+    try {
+      await g.raw(['worktree', 'remove', wt.path])
+    } catch {
+      // The dir may have been deleted manually (stale registration) — prune and
+      // see if that cleared it. If a real, dirty worktree still holds the
+      // branch, stop rather than risk discarding uncommitted work.
+      await g.raw(['worktree', 'prune'])
+      if (await heldElsewhere()) {
+        throw new Error(
+          `"${branch}" is open in a worktree with uncommitted changes.\n` +
+            `Commit or stash them in that terminal first, then try again.`,
+        )
+      }
+    }
+  }
+  await g.raw(['switch', branch])
+}
+
 // ---------------------------------------------------------------------------
 // Working tree: status, staging, commit, sync
 // ---------------------------------------------------------------------------

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useApp, branchKey, tabDisplayName, tabBusy } from '../store'
 import type { Repo, Branch } from '../../shared/types'
 import { Icon } from './Icon'
 import { Logo } from './Logo'
+import { BRANCH_COLORS, resolveBranchColor } from '../colors'
 
 function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
   const {
@@ -14,16 +16,27 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
     toggleBranch,
     setActiveTab,
     requestDeleteBranch,
+    checkoutBranch,
+    branchesByRepo,
+    branchColorsByRepo,
+    setBranchColor,
     processByTab,
   } = useApp()
+  const [colorMenu, setColorMenu] = useState(false)
   const key = branchKey(repo.id, branch.name)
   const branchTabs = tabs.filter((t) => t.repoId === repo.id && t.branch === branch.name)
   const expanded = expandedBranches.has(key) && branchTabs.length > 0
   const wt = worktrees[key]
   const isLoading = loading.has(key)
+  const explicitColor = branchColorsByRepo[repo.id]?.[branch.name]
+  const branchIndex = (branchesByRepo[repo.id] ?? []).findIndex((b) => b.name === branch.name)
+  const color = resolveBranchColor(explicitColor, branchIndex)
 
   return (
-    <div className="branch">
+    <div
+      className={`branch${color ? ' colored' : ''}`}
+      style={color ? ({ '--branch-color': color } as React.CSSProperties) : undefined}
+    >
       <div className="row branch-row">
         <button
           className="disclosure"
@@ -52,6 +65,43 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
             <span className="dot-spin" />
           ) : (
             <>
+              <div className="color-pick">
+                <button
+                  className="swatch-btn"
+                  title="Color this branch"
+                  style={{ background: color }}
+                  onClick={() => setColorMenu((v) => !v)}
+                />
+                {colorMenu && (
+                  <>
+                    <div className="color-scrim" onClick={() => setColorMenu(false)} />
+                    <div className="color-menu">
+                      {BRANCH_COLORS.map((c) => (
+                        <button
+                          key={c.id}
+                          className={`swatch-opt${explicitColor === c.id ? ' sel' : ''}`}
+                          title={c.label}
+                          style={{ background: c.hex }}
+                          onClick={() => {
+                            void setBranchColor(repo.id, branch.name, c.id)
+                            setColorMenu(false)
+                          }}
+                        />
+                      ))}
+                      <button
+                        className="swatch-opt none"
+                        title="Reset to default"
+                        onClick={() => {
+                          void setBranchColor(repo.id, branch.name, null)
+                          setColorMenu(false)
+                        }}
+                      >
+                        <Icon name="sync" size={11} />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <button
                 className="icon-btn"
                 title="New terminal tab"
@@ -60,13 +110,22 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
                 <Icon name="plus" size={14} />
               </button>
               {!branch.current && (
-                <button
-                  className="icon-btn danger-hover"
-                  title="Delete branch"
-                  onClick={() => requestDeleteBranch(repo.id, branch.name)}
-                >
-                  <Icon name="trash" size={13} />
-                </button>
+                <>
+                  <button
+                    className="icon-btn"
+                    title="Checkout as HEAD"
+                    onClick={() => checkoutBranch(repo.id, branch.name)}
+                  >
+                    <Icon name="swap" size={13} />
+                  </button>
+                  <button
+                    className="icon-btn danger-hover"
+                    title="Delete branch"
+                    onClick={() => requestDeleteBranch(repo.id, branch.name)}
+                  >
+                    <Icon name="trash" size={13} />
+                  </button>
+                </>
               )}
             </>
           )}
@@ -108,6 +167,7 @@ function RepoNode({ repo }: { repo: Repo }) {
     loading,
     branchFilter,
     toggleRepo,
+    refreshRepo,
     removeRepo,
     openModal,
     openBranchPicker,
@@ -133,6 +193,14 @@ function RepoNode({ repo }: { repo: Repo }) {
           <span className="ellipsis repo-name">{repo.name}</span>
         </button>
         <div className="row-actions">
+          <button
+            className="icon-btn"
+            title="Fetch & refresh branches"
+            onClick={() => refreshRepo(repo.id)}
+            disabled={isLoading}
+          >
+            <Icon name="fetch" size={14} className={isLoading ? 'spinning' : undefined} />
+          </button>
           <button
             className="icon-btn"
             title="Choose which branches to show"
