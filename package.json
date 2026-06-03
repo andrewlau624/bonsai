@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "rebuild": "electron-rebuild -f -w node-pty",
-    "postinstall": "electron-rebuild -f -w node-pty || true",
+    "postinstall": "node scripts/postinstall.mjs",
     "gen:icon": "node scripts/gen-icon.mjs",
     "dist": "npm run gen:icon && npm run build && electron-builder",
     "dist:mac": "npm run gen:icon && npm run build && electron-builder --mac"
