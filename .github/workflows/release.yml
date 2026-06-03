@@ -1,0 +1,47 @@
+name: Release
+
+# Triggered by `npm run release <patch|minor|major>`, which pushes a `vX.Y.Z`
+# tag. We build the mac DMG + ZIP (unsigned — friends right-click → Open the
+# first time; the in-app updater handles subsequent versions in place).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build app
+        run: npm run dist:mac -- --arm64 --x64
+        env:
+          # Skip codesign discovery — no Developer ID, no notarization. The
+          # in-app updater works without signing by swapping the bundle and
+          # stripping `com.apple.quarantine` after the move.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*-mac.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

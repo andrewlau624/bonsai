@@ -356,4 +356,32 @@ export interface BonsaiApi {
   }
   onOpenSettings(cb: () => void): () => void
   onReloadPreview(cb: () => void): () => void
+  updater: {
+    /** Trigger a GitHub Releases check. State is reported via onUpdaterState. */
+    check(): Promise<void>
+    /** Download (if needed) and apply the available update, relaunching the app. */
+    install(): Promise<void>
+    /** Read the current updater state synchronously. */
+    state(): Promise<UpdaterState>
+  }
+  onUpdaterState(cb: (state: UpdaterState) => void): () => void
 }
+
+/**
+ * Auto-update progress as the renderer sees it.
+ * - idle: never checked yet this session
+ * - checking: hitting GitHub
+ * - uptodate: latest tag <= installed version
+ * - available: a newer release exists but we haven't downloaded it
+ * - downloading: progress is a 0..1 fraction
+ * - ready: zip is on disk; clicking install will swap and relaunch
+ * - error: something went wrong; user can re-check
+ */
+export type UpdaterState =
+  | { kind: 'idle' }
+  | { kind: 'checking' }
+  | { kind: 'uptodate' }
+  | { kind: 'available'; version: string; notes: string }
+  | { kind: 'downloading'; version: string; progress: number }
+  | { kind: 'ready'; version: string }
+  | { kind: 'error'; message: string }

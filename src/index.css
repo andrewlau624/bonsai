@@ -3380,3 +3380,62 @@ kbd {
 .hidden-row:hover {
   color: var(--accent);
 }
+
+/* Auto-update banner. Pinned to the bottom of the workspace; only present when
+ * there's an actionable state (available / downloading / ready / error). */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text);
+}
+.update-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.update-banner-text strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+.update-banner-btn {
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.update-banner-btn:hover:not(:disabled) {
+  background: var(--accent-press);
+}
+.update-banner-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.update-banner-progress {
+  flex: 1 1 160px;
+  max-width: 240px;
+  height: 5px;
+  background: var(--bg-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.update-banner-progress > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.15s;
+}
+.update-banner-err {
+  color: var(--danger);
+}

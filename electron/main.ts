@@ -5,6 +5,7 @@ import { fixPath } from './fix-path'
 import { registerIpc } from './ipc'
 import { killAll } from './pty'
 import { buildMenu } from './menu'
+import { scheduleStartupCheck } from './updater'
 
 // Repair PATH before anything shells out to gh/git — a GUI launch (Finder/Dock)
 // inherits a minimal PATH that omits Homebrew et al. See electron/fix-path.ts.
@@ -196,6 +197,7 @@ app.whenReady().then(() => {
   registerIpc()
   buildMenu()
   createWindow()
+  scheduleStartupCheck()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

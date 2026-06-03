@@ -14,6 +14,7 @@ import * as gitOps from './git'
 import * as ptyMgr from './pty'
 import * as store from './store'
 import * as github from './github'
+import * as updater from './updater'
 import { openCodeWindow, openPrWindow, openDiffWindow, openBrowserWindow } from './main'
 
 export function registerIpc(): void {
@@ -205,4 +206,9 @@ export function registerIpc(): void {
   ipcMain.handle('pr:accounts', () => github.ghAccounts())
   ipcMain.handle('pr:switchAccount', (_e, user: string) => github.ghSwitch(user))
   ipcMain.handle('pr:checkLog', (_e, cwd: string, link: string) => github.checkLog(cwd, link))
+
+  // ---- Auto-updater (GitHub Releases, unsigned mac swap-in-place) ----
+  ipcMain.handle('updater:check', () => updater.checkForUpdates())
+  ipcMain.handle('updater:install', () => updater.installUpdate())
+  ipcMain.handle('updater:state', () => updater.getState())
 }

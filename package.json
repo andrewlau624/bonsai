@@ -13,7 +13,8 @@
     "postinstall": "node scripts/postinstall.mjs",
     "gen:icon": "node scripts/gen-icon.mjs",
     "dist": "npm run gen:icon && npm run build && electron-builder",
-    "dist:mac": "npm run gen:icon && npm run build && electron-builder --mac"
+    "dist:mac": "npm run gen:icon && npm run build && electron-builder --mac",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
@@ -59,8 +60,10 @@
       "category": "public.app-category.developer-tools",
       "icon": "build/icon.png",
       "target": [
-        "dmg"
-      ]
+        "dmg",
+        "zip"
+      ],
+      "identity": null
     },
     "win": {
       "icon": "build/icon.png"

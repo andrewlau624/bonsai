@@ -14,6 +14,7 @@ import type {
   PrStatus,
   PullRequestDetail,
   PrComment,
+  UpdaterState,
 } from '../shared/types'
 
 const api: BonsaiApi = {
@@ -166,6 +167,16 @@ const api: BonsaiApi = {
     const listener = () => cb()
     ipcRenderer.on('menu:reload-preview', listener)
     return () => ipcRenderer.removeListener('menu:reload-preview', listener)
+  },
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check') as Promise<void>,
+    install: () => ipcRenderer.invoke('updater:install') as Promise<void>,
+    state: () => ipcRenderer.invoke('updater:state') as Promise<UpdaterState>,
+  },
+  onUpdaterState: (cb) => {
+    const listener = (_e: unknown, state: UpdaterState) => cb(state)
+    ipcRenderer.on('updater:state', listener)
+    return () => ipcRenderer.removeListener('updater:state', listener)
   },
 }
 

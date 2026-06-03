@@ -14,6 +14,7 @@ import { Preview } from './components/Preview'
 import { PortsMenu } from './components/PortsMenu'
 import { Icon } from './components/Icon'
 import { Logo } from './components/Logo'
+import { UpdateBanner } from './components/UpdateBanner'
 
 export default function App() {
   const {
@@ -168,6 +169,7 @@ export default function App() {
           <SourceControl />
         </div>
         <CommandBar />
+        <UpdateBanner />
       </main>
       <Modal />
       <Settings />

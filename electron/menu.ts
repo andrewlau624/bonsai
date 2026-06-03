@@ -1,6 +1,7 @@
 import { app, Menu, shell, BrowserWindow } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
 import { getMainWindow } from './main'
+import { checkForUpdates } from './updater'
 
 // Native application menu (the macOS top bar). The Settings item (⌘,) tells the
 // renderer to open the in-app Settings panel.
@@ -18,6 +19,10 @@ export function buildMenu(): void {
             submenu: [
               { role: 'about' as const },
               { type: 'separator' as const },
+              {
+                label: 'Check for Updates…',
+                click: () => void checkForUpdates(),
+              },
               {
                 label: 'Settings…',
                 accelerator: 'CmdOrCtrl+,',
