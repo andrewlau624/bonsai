@@ -51,6 +51,20 @@ export function DiffWindow({
       <header className="diff-window-head">
         <Icon name="diff" size={14} />
         <span className="cv-file-name">{file}</span>
+        <button
+          className="btn ghost sm"
+          style={{ marginLeft: 'auto' }}
+          title="Open the full file with +/- markers"
+          onClick={() =>
+            void window.bonsai.window.openCode(
+              cwd,
+              file,
+              kind === 'commit' ? { diff: 'commit', ref: gitRef } : { diff: 'pr', ref: gitRef },
+            )
+          }
+        >
+          <Icon name="file" size={13} /> Full file
+        </button>
       </header>
       <div className="diff-window-body">
         {diff === null ? (

@@ -242,7 +242,7 @@ export function TabStrip() {
           )
           return (
             <div
-              className={`branch-grp colored${hasActive ? ' has-active' : ''}`}
+              className={`branch-grp colored${hasActive ? ' has-active' : ''}${!isCollapsed ? ' expanded' : ''}`}
               key={br}
               style={{ '--branch-color': color } as React.CSSProperties}
             >

@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
+import type { CodeDiffSource } from '../shared/types'
 import App from './App'
 import '@xterm/xterm/css/xterm.css'
 import './index.css'
@@ -20,9 +21,18 @@ const view = params.get('view')
 
 function Root() {
   if (view === 'code') {
+    const diff = params.get('diff')
+    let source: CodeDiffSource | undefined
+    if (diff === 'worktree') source = { diff: 'worktree', staged: params.get('staged') === '1' }
+    else if (diff === 'pr' || diff === 'commit')
+      source = { diff, ref: params.get('ref') ?? '' }
     return (
       <Suspense fallback={<div className="cv-loading">Loading…</div>}>
-        <CodeViewer cwd={params.get('cwd') ?? ''} initialFile={params.get('file') ?? ''} />
+        <CodeViewer
+          cwd={params.get('cwd') ?? ''}
+          initialFile={params.get('file') ?? ''}
+          initialSource={source}
+        />
       </Suspense>
     )
   }

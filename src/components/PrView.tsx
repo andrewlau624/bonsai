@@ -116,11 +116,13 @@ function FilesTab({
   diffMap,
   reviewComments,
   onOpenFile,
+  onOpenFull,
 }: {
   files: PrFile[] | null
   diffMap: Record<string, string> | null
   reviewComments: PrReviewComment[]
   onOpenFile: (path: string) => void
+  onOpenFull: (path: string) => void
 }) {
   const [open, setOpen] = useState<string | null>(null)
   if (!files) return <div className="sc-empty">Loading files…</div>
@@ -145,6 +147,16 @@ function FilesTab({
                   {fileComments.length}
                 </span>
               )}
+              <span
+                className="icon-btn"
+                title="Open full file (+/-)"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenFull(f.path)
+                }}
+              >
+                <Icon name="file" size={12} />
+              </span>
               <span
                 className="icon-btn"
                 title="Open diff in window"
@@ -216,6 +228,9 @@ function CommitDetail({ cwd, commit, onBack }: { cwd: string; commit: PrCommit; 
           diffMap={diffMap}
           reviewComments={[]}
           onOpenFile={(path) => void window.bonsai.window.openDiff(cwd, 'commit', commit.hash, path)}
+          onOpenFull={(path) =>
+            void window.bonsai.window.openCode(cwd, path, { diff: 'commit', ref: commit.hash })
+          }
         />
       )}
     </div>
@@ -456,6 +471,9 @@ export function PrView({
             diffMap={diffMap}
             reviewComments={reviewComments}
             onOpenFile={(path) => void window.bonsai.window.openDiff(cwd, 'pr', String(num), path)}
+            onOpenFull={(path) =>
+              void window.bonsai.window.openCode(cwd, path, { diff: 'pr', ref: String(num) })
+            }
           />
         )}
       </div>

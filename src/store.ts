@@ -15,6 +15,7 @@ import type {
   Commit,
   GhAccount,
   RunnableGroup,
+  CodeDiffSource,
 } from '../shared/types'
 import { applyTheme } from './themes'
 import { modeValue } from './modes'
@@ -155,7 +156,7 @@ interface AppState {
   openDiff: (file: string, staged: boolean) => Promise<void>
   backToList: () => void
   browseFiles: (relPath: string) => Promise<void>
-  openCode: (file?: string) => void
+  openCode: (file?: string, source?: CodeDiffSource) => void
 
   registerSession: (tabId: string, sessionId: string) => void
   unregisterSession: (tabId: string) => void
@@ -688,10 +689,10 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
-  openCode: (file = '') => {
+  openCode: (file = '', source) => {
     const tab = get().activeTab()
     if (!tab) return
-    void window.bonsai.window.openCode(tab.cwd, file)
+    void window.bonsai.window.openCode(tab.cwd, file, source)
   },
 
   // ---- Session registry + saved commands ----

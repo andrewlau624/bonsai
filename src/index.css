@@ -552,6 +552,7 @@ button {
   color: var(--blue);
 }
 .branch-hd {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -568,6 +569,26 @@ button {
 }
 .branch-hd:hover {
   color: var(--text-dim);
+}
+/* Solid branch-color bar anchors the header so it reads as the branch, not a tab. */
+.branch-grp.colored .branch-hd {
+  padding-left: 13px;
+}
+.branch-grp.colored .branch-hd::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--branch-color);
+}
+/* Divider sets the branch header apart from its terminal tabs (only when open). */
+.branch-grp.expanded .branch-hd {
+  border-right: 1px solid var(--border);
+  margin-right: 4px;
 }
 .branch-grp.has-active .branch-hd {
   color: var(--text-dim);
@@ -2579,11 +2600,53 @@ kbd {
   left: 0;
   flex: none;
   text-align: right;
-  padding: 8px 10px 8px 14px;
+  padding: 8px 10px 8px 8px;
   color: var(--text-faint);
   background: var(--bg);
   user-select: none;
   border-right: var(--border-width) solid var(--border-soft);
+}
+/* Per-line gutter row: a +/- sign cell plus the line number. */
+.cv-gline {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-left: 6px;
+}
+.cv-sign {
+  width: 7px;
+  text-align: center;
+  font-weight: 700;
+}
+/* Added line: green number + sign and a solid green bar down the gutter edge. */
+.cv-gline.add {
+  color: var(--add);
+  box-shadow: inset 2px 0 0 var(--add);
+}
+/* Deletion marker: a short red wedge at the boundary where lines were removed. */
+.cv-gline.del::before,
+.cv-gline.del-end::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 7px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--del);
+}
+.cv-gline.del::before {
+  top: -1.5px;
+}
+.cv-gline.del-end::after {
+  bottom: -1.5px;
+}
+/* Additions count beside the file name in the header. */
+.cv-change-add {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--add);
 }
 .cv-pre {
   margin: 0;

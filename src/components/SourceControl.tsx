@@ -134,7 +134,7 @@ function DiffPanel() {
         <span className="ellipsis panel-title">{inspector.file}</span>
         <button
           className="btn ghost sm"
-          onClick={() => openCode(inspector.file)}
+          onClick={() => openCode(inspector.file, { diff: 'worktree', staged: inspector.staged })}
           title="Open the full file in a separate window"
         >
           <Icon name="file" size={13} /> Full file

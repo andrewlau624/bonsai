@@ -6,6 +6,7 @@ import { registerIpc } from './ipc'
 import { killAll } from './pty'
 import { buildMenu } from './menu'
 import { scheduleStartupCheck } from './updater'
+import type { CodeDiffSource } from '../shared/types'
 
 // Repair PATH before anything shells out to gh/git — a GUI launch (Finder/Dock)
 // inherits a minimal PATH that omits Homebrew et al. See electron/fix-path.ts.
@@ -25,12 +26,12 @@ let win: BrowserWindow | null = null
 const codeWindows = new Map<string, BrowserWindow>()
 
 /** Open (or focus) a standalone code-viewer window for a worktree. */
-export function openCodeWindow(cwd: string, file: string): void {
+export function openCodeWindow(cwd: string, file: string, source?: CodeDiffSource): void {
   const key = cwd
   const existing = codeWindows.get(key)
   if (existing && !existing.isDestroyed()) {
     existing.focus()
-    existing.webContents.send('code:navigate', file)
+    existing.webContents.send('code:navigate', { file, source })
     return
   }
 
@@ -48,7 +49,12 @@ export function openCodeWindow(cwd: string, file: string): void {
     },
   })
 
-  const params = `view=code&cwd=${encodeURIComponent(cwd)}&file=${encodeURIComponent(file)}`
+  let params = `view=code&cwd=${encodeURIComponent(cwd)}&file=${encodeURIComponent(file)}`
+  if (source) {
+    params += `&diff=${source.diff}`
+    if (source.diff === 'worktree') params += `&staged=${source.staged ? 1 : 0}`
+    else params += `&ref=${encodeURIComponent(source.ref)}`
+  }
   if (DEV_SERVER_URL) {
     cw.loadURL(`${DEV_SERVER_URL}?${params}`)
   } else {

@@ -9,6 +9,7 @@ import type {
   LayoutState,
   AppConfig,
   SavedCommand,
+  CodeDiffSource,
 } from '../shared/types'
 import * as gitOps from './git'
 import * as ptyMgr from './pty'
@@ -148,7 +149,9 @@ export function registerIpc(): void {
   )
 
   // ---- Code viewer window ----
-  ipcMain.handle('window:openCode', (_e, cwd: string, file: string) => openCodeWindow(cwd, file))
+  ipcMain.handle('window:openCode', (_e, cwd: string, file: string, source?: CodeDiffSource) =>
+    openCodeWindow(cwd, file, source),
+  )
   ipcMain.handle('window:openPr', (_e, cwd: string, num: number) => openPrWindow(cwd, num))
   ipcMain.handle('window:openDiff', (_e, cwd: string, kind: string, ref: string, file: string) =>
     openDiffWindow(cwd, kind, ref, file),

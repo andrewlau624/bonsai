@@ -15,6 +15,11 @@ export interface Branch {
   worktreePath: string | null
 }
 
+/** Where the code viewer should source its +/- diff overlay from. */
+export type CodeDiffSource =
+  | { diff: 'worktree'; staged: boolean }
+  | { diff: 'pr' | 'commit'; ref: string }
+
 export interface Worktree {
   repoId: string
   branch: string
@@ -332,10 +337,11 @@ export interface BonsaiApi {
     checkLog(cwd: string, link: string): Promise<string>
   }
   window: {
-    /** Open the standalone code viewer window for a worktree (optionally at a file). */
-    openCode(cwd: string, file: string): Promise<void>
+    /** Open the standalone code viewer window for a worktree (optionally at a file).
+     * When `source` is given, the viewer overlays +/- change markers in the gutter. */
+    openCode(cwd: string, file: string, source?: CodeDiffSource): Promise<void>
     /** (Code window) fired when the main window requests navigation to a file. */
-    onNavigate(cb: (file: string) => void): () => void
+    onNavigate(cb: (payload: { file: string; source?: CodeDiffSource }) => void): () => void
     /** Open a pull request in its own window. */
     openPr(cwd: string, num: number): Promise<void>
     /** Open a single file's diff (+/-) from a PR or commit in its own window. */

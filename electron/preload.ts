@@ -140,9 +140,10 @@ const api: BonsaiApi = {
     checkLog: (cwd, link) => ipcRenderer.invoke('pr:checkLog', cwd, link) as Promise<string>,
   },
   window: {
-    openCode: (cwd, file) => ipcRenderer.invoke('window:openCode', cwd, file) as Promise<void>,
+    openCode: (cwd, file, source) =>
+      ipcRenderer.invoke('window:openCode', cwd, file, source) as Promise<void>,
     onNavigate: (cb) => {
-      const listener = (_e: unknown, file: string) => cb(file)
+      const listener = (_e: unknown, payload: Parameters<typeof cb>[0]) => cb(payload)
       ipcRenderer.on('code:navigate', listener)
       return () => ipcRenderer.removeListener('code:navigate', listener)
     },
