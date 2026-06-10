@@ -27,7 +27,10 @@ jobs:
         run: npm ci
 
       - name: Build app
-        run: npm run dist:mac -- --arm64 --x64
+        # `--publish never` keeps electron-builder from trying to publish the
+        # release itself (it would need GH_TOKEN and fail). It only builds the
+        # artifacts into dist/; the gh-release step below uploads them.
+        run: npm run dist:mac -- --arm64 --x64 --publish never
         env:
           # Skip codesign discovery — no Developer ID, no notarization. The
           # in-app updater works without signing by swapping the bundle and
