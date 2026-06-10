@@ -323,13 +323,9 @@ export const useApp = create<AppState>((set, get) => ({
       tabs,
       activeTabId,
       activeRepoId: layout.activeRepoId ?? activeFromTab,
-      expandedRepoIds: new Set(layout.expandedRepoIds),
-      expandedBranches: new Set(layout.expandedBranches),
+      expandedRepoIds: new Set(),
+      expandedBranches: new Set(),
     })
-    for (const id of layout.expandedRepoIds) {
-      const branches = await window.bonsai.repos.branches(id)
-      set((s) => ({ branchesByRepo: { ...s.branchesByRepo, [id]: branches } }))
-    }
     for (const r of repos) {
       void get().loadCommands(r.id)
       void get().loadBranchPrefs(r.id)

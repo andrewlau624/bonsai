@@ -226,6 +226,11 @@ button {
   overflow-y: auto;
   padding: 4px 6px 10px;
 }
+.tree > .repo + .repo {
+  border-top: 1px solid var(--border-faint, var(--border));
+  margin-top: 6px;
+  padding-top: 6px;
+}
 .empty {
   display: flex;
   flex-direction: column;
