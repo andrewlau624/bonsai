@@ -29,7 +29,7 @@ jobs:
       - name: Build app
         # `--publish never` keeps electron-builder from trying to publish the
         # release itself (it would need GH_TOKEN and fail). It only builds the
-        # artifacts into dist/; the gh-release step below uploads them.
+        # artifacts into release/; the gh-release step below uploads them.
         run: npm run dist:mac -- --arm64 --x64 --publish never
         env:
           # Skip codesign discovery — no Developer ID, no notarization. The
@@ -41,9 +41,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*-mac.zip
+            release/*.dmg
+            release/*.zip
+            release/*-mac.zip
           generate_release_notes: true
           fail_on_unmatched_files: true
         env:

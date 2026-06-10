@@ -1865,6 +1865,71 @@ button {
   white-space: pre;
 }
 
+/* ---------- Terminal config editor ---------- */
+.term-cfg-editor {
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg);
+}
+.term-cfg-editor .cm-editor {
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.term-cfg-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.term-cfg-editor .cm-gutters {
+  background: var(--bg);
+  color: var(--text-faint);
+  border-right: 1px solid var(--border-soft);
+}
+.term-cfg-editor .cm-cursor {
+  border-left-color: var(--accent);
+}
+.term-cfg-warn {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.term-cfg-warn-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--yellow);
+}
+.term-cfg-keys {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.term-cfg-keys code {
+  color: var(--text);
+}
+.term-cfg-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.term-cfg-theme {
+  padding: 4px 10px;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+.term-cfg-theme:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
 /* ---------- Turns panel ---------- */
 .turns-list {
   display: flex;

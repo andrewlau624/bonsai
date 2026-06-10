@@ -1,17 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import CodeMirror from '@uiw/react-codemirror'
 import { useApp } from '../store'
 import { Icon } from './Icon'
 import { THEMES, ACCENTS } from '../themes'
+import { parseTerminalConfig, TERMINAL_THEME_NAMES } from '../terminalConfig'
 import { MODE_DEFS, modeValue } from '../modes'
 
-type Tab = 'appearance' | 'behavior' | 'profiles' | 'config'
+type Tab = 'appearance' | 'behavior' | 'terminal' | 'profiles' | 'config'
 
 const TABS: { id: Tab; label: string; icon: Parameters<typeof Icon>[0]['name'] }[] = [
   { id: 'appearance', label: 'Appearance', icon: 'palette' },
   { id: 'behavior', label: 'Behavior', icon: 'sliders' },
+  { id: 'terminal', label: 'Terminal', icon: 'terminal' },
   { id: 'profiles', label: 'Profiles', icon: 'layers' },
   { id: 'config', label: 'Config', icon: 'config' },
 ]
+
+// Seeded into the editor via "Insert example" — only keys Bonsai applies.
+const TERMINAL_CONFIG_STARTER = `# Bonsai terminal config — Ghostty-style \`key = value\` lines.
+# Changes apply to the terminal live. Lines starting with # are comments.
+
+theme = Catppuccin Macchiato
+
+font-family = "Comic Mono"
+font-size = 14
+# Nudge xterm's cell height; percentages only (e.g. 5% taller, -3% tighter).
+adjust-cell-height = 5%
+
+# Padding around the terminal, in pixels.
+window-padding-x = 16
+window-padding-y = 12
+
+cursor-style = block
+cursor-style-blink = true
+`
 
 function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -341,6 +363,97 @@ function Behavior() {
   )
 }
 
+function TerminalConfigTab() {
+  const { config, updateConfig } = useApp()
+  const [text, setText] = useState(config?.terminalConfig ?? '')
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Resync if the stored value changes elsewhere (matches our own debounced write).
+  useEffect(() => setText(config?.terminalConfig ?? ''), [config?.terminalConfig])
+  const warnings = useMemo(() => parseTerminalConfig(text).warnings, [text])
+  if (!config) return null
+
+  const apply = (v: string) => {
+    setText(v)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => void updateConfig({ terminalConfig: v }), 400)
+  }
+
+  return (
+    <>
+      <h4 className="set-h">Terminal config</h4>
+      <p className="set-intro">
+        Style the terminal with <a href="https://ghostty.org/docs/config" onClick={(e) => { e.preventDefault(); window.bonsai.openExternal('https://ghostty.org/docs/config/reference') }}>Ghostty-style</a>{' '}
+        <code>key = value</code> lines. Bonsai's terminal is xterm.js, so it applies the subset below — other
+        Ghostty keys are ignored. Changes take effect live and override the Appearance settings.
+      </p>
+      <div className="term-cfg-editor">
+        <CodeMirror
+          value={text}
+          height="300px"
+          theme="dark"
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: false,
+            highlightActiveLine: false,
+            highlightActiveLineGutter: false,
+            autocompletion: false,
+            bracketMatching: false,
+            closeBrackets: false,
+            searchKeymap: false,
+          }}
+          onChange={apply}
+        />
+      </div>
+      {text.trim() === '' && (
+        <button className="btn ghost sm" onClick={() => apply(TERMINAL_CONFIG_STARTER)}>
+          <Icon name="plus" size={13} /> Insert example
+        </button>
+      )}
+      {warnings.length > 0 && (
+        <div className="term-cfg-warn">
+          {warnings.map((w, i) => (
+            <div key={i} className="term-cfg-warn-row">
+              <Icon name="dot" size={12} /> {w}
+            </div>
+          ))}
+        </div>
+      )}
+      <h4 className="set-h">Supported keys</h4>
+      <ul className="term-cfg-keys">
+        <li><code>theme</code> — a built-in palette (see below)</li>
+        <li><code>font-family</code> — e.g. <code>"Comic Mono"</code></li>
+        <li><code>font-size</code> — points (6–72)</li>
+        <li><code>adjust-cell-height</code> — line height as a percent, e.g. <code>5%</code></li>
+        <li><code>cursor-style</code> — <code>block</code>, <code>bar</code>, or <code>underline</code></li>
+        <li><code>cursor-style-blink</code> — <code>true</code> / <code>false</code></li>
+        <li><code>window-padding-x</code>, <code>window-padding-y</code> — pixels</li>
+        <li><code>background</code>, <code>foreground</code>, <code>cursor-color</code>, <code>selection-background</code> — hex</li>
+        <li><code>palette</code> — <code>N=#hex</code> for ANSI 0–15</li>
+      </ul>
+      <h4 className="set-h">Built-in themes</h4>
+      <div className="term-cfg-themes">
+        {TERMINAL_THEME_NAMES.map((n) => (
+          <button key={n} className="term-cfg-theme" onClick={() => apply(setThemeLine(text, n))} title={`Use ${n}`}>
+            {n}
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+
+/** Replace an existing `theme = …` line, or prepend one, keeping the rest intact. */
+function setThemeLine(text: string, name: string): string {
+  const line = `theme = ${name}`
+  const lines = text.split('\n')
+  const idx = lines.findIndex((l) => /^\s*theme\s*=/.test(l))
+  if (idx >= 0) {
+    lines[idx] = line
+    return lines.join('\n')
+  }
+  return text.trim() ? `${line}\n${text}` : `${line}\n`
+}
+
 function Profiles() {
   const { config, saveProfile, applyProfile, deleteProfile } = useApp()
   const [name, setName] = useState('')
@@ -516,6 +629,7 @@ export function Settings() {
           <div className="settings-body">
             {tab === 'appearance' && <Appearance />}
             {tab === 'behavior' && <Behavior />}
+            {tab === 'terminal' && <TerminalConfigTab />}
             {tab === 'profiles' && <Profiles />}
             {tab === 'config' && <ConfigTab />}
           </div>

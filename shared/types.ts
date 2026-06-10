@@ -236,6 +236,9 @@ export interface AppConfig {
   monoFont: MonoFont
   /** Disable backdrop blur / translucency on overlays. */
   reduceTransparency: boolean
+  /** Ghostty-style terminal config (key = value lines). Overrides the terminal
+   * pane's font / cursor / theme / padding when set. Empty = use the fields above. */
+  terminalConfig: string
   /** Syntax-highlight code in the viewer. */
   syntaxHighlight: boolean
   /** Show line numbers in the code viewer. */

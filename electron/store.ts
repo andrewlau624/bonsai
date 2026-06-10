@@ -32,6 +32,7 @@ const DEFAULT_CONFIG: AppConfig = {
   uiScale: 'normal',
   monoFont: 'system',
   reduceTransparency: false,
+  terminalConfig: '',
   syntaxHighlight: true,
   codeLineNumbers: true,
   sidebarCollapsed: false,

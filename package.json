@@ -65,6 +65,9 @@
   "build": {
     "appId": "app.pacific.bonsai",
     "productName": "Bonsai",
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "dist",
       "dist-electron"

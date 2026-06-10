@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+import type { CSSProperties } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -6,6 +7,7 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import type { TabState } from '../../shared/types'
 import { useApp } from '../store'
 import { getTheme } from '../themes'
+import { parseTerminalConfig } from '../terminalConfig'
 
 const FONT_FAMILY = 'Menlo, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace'
 
@@ -34,18 +36,29 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
   const registerSession = useApp((s) => s.registerSession)
   const unregisterSession = useApp((s) => s.unregisterSession)
   const themeId = config?.theme ?? 'modern'
-  const fontSize = config?.fontSize ?? 13
-  const cursorBlink = config?.cursorBlink ?? true
-  const cursorStyle = config?.cursorStyle ?? 'bar'
+
+  // Ghostty-style terminal config overrides the base Appearance fields when set.
+  const tc = useMemo(() => parseTerminalConfig(config?.terminalConfig ?? ''), [config?.terminalConfig])
+  const fontFamily = tc.fontFamily || FONT_FAMILY
+  const fontSize = tc.fontSize ?? config?.fontSize ?? 13
+  const lineHeight = tc.lineHeight ?? 1
+  const cursorBlink = tc.cursorBlink ?? config?.cursorBlink ?? true
+  const cursorStyle = tc.cursorStyle ?? config?.cursorStyle ?? 'bar'
+  const termTheme = { ...getTheme(themeId).terminal, ...(tc.theme ?? {}) }
+  const paneStyle: CSSProperties =
+    tc.paddingX != null || tc.paddingY != null
+      ? { display: active ? 'block' : 'none', padding: `${tc.paddingY ?? 8}px ${tc.paddingX ?? 10}px` }
+      : { display: active ? 'block' : 'none' }
 
   useEffect(() => {
     const term = new XTerm({
-      fontFamily: FONT_FAMILY,
+      fontFamily,
       fontSize,
+      lineHeight,
       cursorBlink,
       cursorStyle,
       allowProposedApi: true,
-      theme: getTheme(themeId).terminal,
+      theme: termTheme,
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
@@ -147,12 +160,14 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Live-apply theme / font / cursor changes from Settings.
+  // Live-apply theme / font / cursor / padding changes from Settings.
   useEffect(() => {
     const term = termRef.current
     if (!term) return
-    term.options.theme = getTheme(themeId).terminal
+    term.options.theme = termTheme
+    term.options.fontFamily = fontFamily
     term.options.fontSize = fontSize
+    term.options.lineHeight = lineHeight
     term.options.cursorBlink = cursorBlink
     term.options.cursorStyle = cursorStyle
     try {
@@ -162,7 +177,8 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
     } catch {
       /* not visible yet */
     }
-  }, [themeId, fontSize, cursorBlink, cursorStyle])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeId, fontFamily, fontSize, lineHeight, cursorBlink, cursorStyle, config?.terminalConfig])
 
   useEffect(() => {
     if (!active) return
@@ -184,7 +200,7 @@ export function TerminalView({ tab, active }: { tab: TabState; active: boolean }
   return (
     <div
       className="term-pane"
-      style={{ display: active ? 'block' : 'none' }}
+      style={paneStyle}
       onClick={() => termRef.current?.focus()}
       onDragOver={(e) => {
         // Allow file drops; the path is dropped at the prompt to edit/run.
