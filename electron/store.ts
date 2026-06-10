@@ -14,7 +14,7 @@ interface Schema {
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  theme: 'modern',
+  theme: 'codex',
   density: 'comfortable',
   fontSize: 13,
   cursorBlink: true,
@@ -22,6 +22,11 @@ const DEFAULT_CONFIG: AppConfig = {
   corners: 'soft',
   cursorStyle: 'bar',
   animations: true,
+  motion: 'normal',
+  branchBarWidth: 'medium',
+  tabStyle: 'filled',
+  tabDensity: 'comfortable',
+  topbarDensity: 'comfortable',
   accent: 'theme',
   accentColor: '#45b884',
   uiScale: 'normal',

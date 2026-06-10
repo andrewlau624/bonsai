@@ -96,7 +96,9 @@ function fetchJson<T>(url: string): Promise<T> {
       res.on('data', (c) => chunks.push(c))
       res.on('end', () => {
         if (!res.statusCode || res.statusCode >= 400) {
-          return reject(new Error(`HTTP ${res.statusCode}`))
+          const err = new Error(`HTTP ${res.statusCode}`) as Error & { status?: number }
+          err.status = res.statusCode
+          return reject(err)
         }
         try {
           resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')) as T)
@@ -166,6 +168,7 @@ function findAppBundle(): string | null {
 export async function checkForUpdates(opts: { silent?: boolean } = {}): Promise<void> {
   if (!app.isPackaged) {
     if (!opts.silent) setState({ kind: 'error', message: 'Updates disabled in dev mode.' })
+    else console.log('[updater] skipped: dev mode')
     return
   }
   if (process.platform !== 'darwin') {
@@ -177,21 +180,44 @@ export async function checkForUpdates(opts: { silent?: boolean } = {}): Promise<
   try {
     const body = await fetchJson<ReleaseResponse>(LATEST_URL)
     const latest = body.tag_name.replace(/^v/, '')
+    console.log(`[updater] latest=${latest} current=${app.getVersion()}`)
     if (cmpVersion(latest, app.getVersion()) <= 0) {
       setState({ kind: 'uptodate' })
       return
     }
     const asset = pickAsset(body.assets ?? [])
     if (!asset) {
-      setState({ kind: 'error', message: `Release ${latest} has no .zip asset for ${process.arch}.` })
+      const msg = `Release ${latest} has no .zip asset for ${process.arch}.`
+      if (opts.silent) {
+        console.warn(`[updater] ${msg}`)
+        setState({ kind: 'idle' })
+      } else {
+        setState({ kind: 'error', message: msg })
+      }
       return
     }
+    console.log(`[updater] new release available v${latest} (${asset.name})`)
     setState({
       kind: 'available',
       info: { version: latest, notes: body.body ?? '', url: asset.browser_download_url },
     })
   } catch (e) {
-    setState({ kind: 'error', message: (e as Error).message })
+    const err = e as Error & { status?: number }
+    // 404 from GitHub means "no releases published yet" — perfectly fine for a
+    // fresh repo, not an error worth alarming the user about.
+    if (err.status === 404) {
+      console.log('[updater] no releases published yet — treating as up-to-date')
+      setState({ kind: 'uptodate' })
+      return
+    }
+    // Silent background checks should never surface transient network errors
+    // (offline, rate-limited, DNS flake). Log and return to idle.
+    if (opts.silent) {
+      console.warn(`[updater] silent check failed: ${err.message}`)
+      setState({ kind: 'idle' })
+      return
+    }
+    setState({ kind: 'error', message: err.message })
   }
 }
 

@@ -409,9 +409,118 @@ function PrPanel() {
 const SEGMENTS: { id: DrawerPanel; label: string; icon: Parameters<typeof Icon>[0]['name'] }[] = [
   { id: 'changes', label: 'Changes', icon: 'diff' },
   { id: 'files', label: 'Files', icon: 'folder' },
+  { id: 'turns', label: 'Turns', icon: 'history' },
   { id: 'prs', label: 'PRs', icon: 'commit' },
   { id: 'log', label: 'Log', icon: 'history' },
 ]
+
+function fmtAgo(t: number): string {
+  const s = Math.floor((Date.now() - t) / 1000)
+  if (s < 60) return `${s}s ago`
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  return `${Math.floor(s / 3600)}h ago`
+}
+
+function fmtDur(start: number, end?: number): string {
+  if (!end) return '…'
+  const s = Math.floor((end - start) / 1000)
+  if (s < 60) return `${s}s`
+  return `${Math.floor(s / 60)}m ${s % 60}s`
+}
+
+function TurnsPanel() {
+  const {
+    activeTab,
+    turnsByTab,
+    activeTurnId,
+    turnDiffById,
+    selectTurn,
+    endTurnNow,
+  } = useApp()
+  const tab = activeTab()
+  if (!tab) return null
+  const turns = turnsByTab[tab.id] ?? []
+  const selected = turns.find((t) => t.id === activeTurnId)
+  const diff = selected ? turnDiffById[selected.id] : undefined
+
+  if (selected) {
+    return (
+      <div className="sc-panel">
+        <div className="panel-head">
+          <button
+            className="icon-btn"
+            onClick={() => selectTurn(null)}
+            title="Back to turns"
+          >
+            <Icon name="chevron" size={14} />
+          </button>
+          <span className="ellipsis panel-title">
+            {selected.command} · {fmtAgo(selected.startedAt)}
+          </span>
+        </div>
+        <div className="panel-scroll">
+          {diff === undefined ? (
+            <div className="sc-empty">
+              <p className="dim">Loading diff…</p>
+            </div>
+          ) : diff.trim() === '' ? (
+            <div className="sc-empty">
+              <p>No file changes</p>
+              <span className="dim">This turn didn't modify any files.</span>
+            </div>
+          ) : (
+            <DiffView diff={diff} />
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="turns-list">
+      <div className="turns-bar">
+        <span className="dim">
+          Snapshots taken when a non-shell process starts/ends in this tab.
+        </span>
+        <button
+          className="text-btn"
+          onClick={() => endTurnNow(tab.id)}
+          title="Manually close the in-progress turn (useful for long-lived processes)"
+        >
+          End turn now
+        </button>
+      </div>
+      {turns.length === 0 ? (
+        <div className="sc-empty">
+          <p>No turns yet</p>
+          <span className="dim">
+            Run a tool (claude, codex, aider, npm, …) here and Bonsai will record
+            what it changed.
+          </span>
+        </div>
+      ) : (
+        <ul className="turns-rows">
+          {turns.map((t) => (
+            <li
+              key={t.id}
+              className={`turn-row${!t.endedAt ? ' in-progress' : ''}`}
+            >
+              <button className="turn-main" onClick={() => selectTurn(t.id)}>
+                <div className="turn-line">
+                  <span className="turn-cmd">{t.command}</span>
+                  <span className="dim turn-time">{fmtAgo(t.startedAt)}</span>
+                </div>
+                <div className="turn-line dim">
+                  <span>{t.endedAt ? `ran ${fmtDur(t.startedAt, t.endedAt)}` : 'in progress'}</span>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export function SourceControl() {
   const {
@@ -493,6 +602,7 @@ export function SourceControl() {
             </>
           )}
           {panel === 'files' && <FilesPanel />}
+          {panel === 'turns' && <TurnsPanel />}
           {panel === 'prs' && <PrPanel />}
           {panel === 'log' && <LogPanel />}
         </>

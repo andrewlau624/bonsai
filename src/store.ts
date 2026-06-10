@@ -16,6 +16,7 @@ import type {
   GhAccount,
   RunnableGroup,
   CodeDiffSource,
+  TurnRecord,
 } from '../shared/types'
 import { applyTheme } from './themes'
 import { modeValue } from './modes'
@@ -23,6 +24,11 @@ import { modeValue } from './modes'
 let tabCounter = 0
 const nextTabId = () => `t${Date.now()}-${++tabCounter}`
 let previewCounter = 0
+
+/** Synthetic repo id for the scratch / Local terminal (no git, no branches). */
+export const LOCAL_REPO_ID = '__local__'
+export const LOCAL_BRANCH = 'local'
+const isLocalTab = (t: TabState | undefined) => !!t && t.repoId === LOCAL_REPO_ID
 
 export interface PreviewTab {
   id: string
@@ -55,7 +61,12 @@ type InspectorView =
   | { kind: 'list' }
   | { kind: 'diff'; file: string; staged: boolean; diff: string }
 
-export type DrawerPanel = 'changes' | 'files' | 'prs' | 'log'
+export type DrawerPanel = 'changes' | 'files' | 'prs' | 'log' | 'turns'
+
+/** Max turns retained per tab. Older ones drop off the end (LRU by start time). */
+const MAX_TURNS_PER_TAB = 25
+let turnCounter = 0
+const nextTurnId = () => `tn${Date.now()}-${++turnCounter}`
 
 type Modal =
   | { type: 'newBranch'; repoId: string }
@@ -68,6 +79,11 @@ function applyConfig(c: AppConfig) {
     uiFont: c.uiFont,
     corners: c.corners,
     animations: c.animations,
+    motion: c.motion ?? (c.animations ? 'normal' : 'none'),
+    branchBarWidth: c.branchBarWidth ?? 'medium',
+    tabStyle: c.tabStyle ?? 'filled',
+    tabDensity: c.tabDensity ?? 'comfortable',
+    topbarDensity: c.topbarDensity ?? 'comfortable',
     accent: c.accent,
     accentColor: c.accentColor,
     uiScale: c.uiScale,
@@ -82,6 +98,8 @@ interface AppState {
   worktrees: Record<string, Worktree>
   tabs: TabState[]
   activeTabId: string | null
+  /** Sticky "I am in this repo" pointer. Survives closing the last tab in the repo. */
+  activeRepoId: string | null
   expandedRepoIds: Set<string>
   expandedBranches: Set<string>
   loading: Set<string>
@@ -98,6 +116,12 @@ interface AppState {
 
   sessionByTab: Record<string, string>
   processByTab: Record<string, string>
+  /** Captured turns per tab id, most-recent first. */
+  turnsByTab: Record<string, TurnRecord[]>
+  /** Cached diff text per turn id, populated lazily on demand. */
+  turnDiffById: Record<string, string>
+  /** Which turn is currently being viewed in the Turns panel. */
+  activeTurnId: string | null
   commandsByRepo: Record<string, SavedCommand[]>
   runnablesByCwd: Record<string, RunnableGroup[]>
   usageByRepo: Record<string, Record<string, number>>
@@ -128,6 +152,7 @@ interface AppState {
   init: () => Promise<void>
   addRepo: () => Promise<void>
   removeRepo: (id: string) => Promise<void>
+  reorderRepos: (draggedId: string, targetId: string) => Promise<void>
   toggleRepo: (id: string) => Promise<void>
   refreshRepo: (id: string) => Promise<void>
   checkoutBranch: (repoId: string, branch: string) => Promise<void>
@@ -135,9 +160,13 @@ interface AppState {
   openBranch: (repoId: string, branch: string, forceNewTab?: boolean) => Promise<void>
   toggleBranch: (repoId: string, branch: string) => void
   setActiveTab: (id: string) => void
+  setActiveRepo: (repoId: string) => void
+  openLocalTerminal: () => Promise<void>
   closeTab: (id: string) => void
   setTabTitle: (id: string, title: string) => void
   setTabProcess: (id: string, name: string) => void
+  selectTurn: (turnId: string | null) => Promise<void>
+  endTurnNow: (tabId: string) => Promise<void>
   togglePinTab: (id: string) => void
   reorderTabs: (draggedId: string, targetId: string) => void
   persist: () => void
@@ -228,6 +257,7 @@ export const useApp = create<AppState>((set, get) => ({
   worktrees: {},
   tabs: [],
   activeTabId: null,
+  activeRepoId: null,
   expandedRepoIds: new Set(),
   expandedBranches: new Set(),
   loading: new Set(),
@@ -244,6 +274,9 @@ export const useApp = create<AppState>((set, get) => ({
 
   sessionByTab: {},
   processByTab: {},
+  turnsByTab: {},
+  turnDiffById: {},
+  activeTurnId: null,
   commandsByRepo: {},
   runnablesByCwd: {},
   usageByRepo: {},
@@ -273,16 +306,23 @@ export const useApp = create<AppState>((set, get) => ({
   previewDetected: false,
 
   init: async () => {
-    const config = await window.bonsai.config.get()
+    let config = await window.bonsai.config.get()
+    // One-shot migration: previous default 'modern' → new Codex aesthetic.
+    if (config.theme === 'modern' && !config.profiles?.length) {
+      config = await window.bonsai.config.set({ theme: 'codex' })
+    }
     applyConfig(config)
     set({ config })
 
     const repos = await window.bonsai.repos.list()
     const { tabs, layout } = await window.bonsai.layout.load()
+    const activeTabId = layout.activeTabId ?? tabs[0]?.id ?? null
+    const activeFromTab = tabs.find((t) => t.id === activeTabId)?.repoId ?? null
     set({
       repos,
       tabs,
-      activeTabId: layout.activeTabId ?? tabs[0]?.id ?? null,
+      activeTabId,
+      activeRepoId: layout.activeRepoId ?? activeFromTab,
       expandedRepoIds: new Set(layout.expandedRepoIds),
       expandedBranches: new Set(layout.expandedBranches),
     })
@@ -297,6 +337,21 @@ export const useApp = create<AppState>((set, get) => ({
     }
     void get().refreshStatus()
     void get().loadRunnables()
+    // Local repo always keeps at least one open terminal so the pill is never
+    // empty. Don't let this steal focus from the user's prior active selection.
+    if (!get().tabs.some(isLocalTab)) {
+      const prevActiveTab = get().activeTabId
+      const prevActiveRepo = get().activeRepoId
+      try {
+        await get().openLocalTerminal()
+        // Restore the user's prior focus — openLocalTerminal moved it to the new tab.
+        if (prevActiveTab && prevActiveTab !== get().activeTabId) {
+          set({ activeTabId: prevActiveTab, activeRepoId: prevActiveRepo })
+        }
+      } catch {
+        /* homedir IPC missing in some dev contexts */
+      }
+    }
   },
 
   addRepo: async () => {
@@ -307,12 +362,42 @@ export const useApp = create<AppState>((set, get) => ({
     await get().toggleRepo(repo.id)
   },
 
+  reorderRepos: async (draggedId, targetId) => {
+    if (draggedId === targetId) return
+    const repos = get().repos
+    const from = repos.findIndex((r) => r.id === draggedId)
+    const to = repos.findIndex((r) => r.id === targetId)
+    if (from < 0 || to < 0) return
+    const next = [...repos]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    set({ repos: next })
+    try {
+      await window.bonsai.repos.reorder(next.map((r) => r.id))
+    } catch {
+      // If persistence fails, revert so UI doesn't drift from disk.
+      set({ repos })
+    }
+  },
+
   removeRepo: async (id) => {
+    // Kill PTYs for any open terminals in this repo before dropping the tabs.
+    for (const t of get().tabs) if (t.repoId === id) window.bonsai.session.kill(t.id)
     await window.bonsai.repos.remove(id)
-    set((s) => ({
-      repos: s.repos.filter((r) => r.id !== id),
-      tabs: s.tabs.filter((t) => t.repoId !== id),
-    }))
+    set((s) => {
+      const repos = s.repos.filter((r) => r.id !== id)
+      const tabs = s.tabs.filter((t) => t.repoId !== id)
+      const processByTab = { ...s.processByTab }
+      for (const t of s.tabs) if (t.repoId === id) delete processByTab[t.id]
+      let activeRepoId = s.activeRepoId
+      if (activeRepoId === id) {
+        activeRepoId = repos[0]?.id ?? (tabs.some((t) => isLocalTab(t)) ? LOCAL_REPO_ID : null)
+      }
+      const activeTabId = s.activeTabId && tabs.some((t) => t.id === s.activeTabId)
+        ? s.activeTabId
+        : tabs.find((t) => t.repoId === activeRepoId)?.id ?? null
+      return { repos, tabs, processByTab, activeRepoId, activeTabId }
+    })
     get().persist()
   },
 
@@ -440,6 +525,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (existing && !forceNewTab) {
       set((s) => ({
         activeTabId: existing.id,
+        activeRepoId: repoId,
         activePane: 'terminal',
         expandedBranches: new Set(s.expandedBranches).add(key),
       }))
@@ -471,6 +557,7 @@ export const useApp = create<AppState>((set, get) => ({
         worktrees: { ...s.worktrees, [key]: worktree },
         tabs: [...s.tabs, tab],
         activeTabId: tab.id,
+        activeRepoId: repoId,
         activePane: 'terminal',
         expandedBranches: new Set(s.expandedBranches).add(key),
         loading,
@@ -490,10 +577,53 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setActiveTab: (id) => {
-    set({ activeTabId: id, inspector: { kind: 'list' }, activePane: 'terminal' })
+    const tab = get().tabs.find((t) => t.id === id)
+    set({
+      activeTabId: id,
+      activeRepoId: tab?.repoId ?? get().activeRepoId,
+      inspector: { kind: 'list' },
+      activePane: 'terminal',
+    })
     get().persist()
     void get().refreshStatus()
     void get().loadRunnables()
+  },
+
+  // Switch the active repo without closing tabs. If the repo has tabs, focus the
+  // most recent one; otherwise leave activeTabId null (the pane shows an empty
+  // state for this repo).
+  setActiveRepo: (repoId) => {
+    const tabsInRepo = get().tabs.filter((t) => t.repoId === repoId)
+    const nextTab = tabsInRepo[tabsInRepo.length - 1]
+    set({
+      activeRepoId: repoId,
+      activeTabId: nextTab?.id ?? null,
+      inspector: { kind: 'list' },
+      activePane: 'terminal',
+    })
+    get().persist()
+    void get().refreshStatus()
+    void get().loadRunnables()
+  },
+
+  // Open a scratch shell in $HOME under the synthetic '__local__' repo. Has no
+  // git/branch context — TabStrip renders these as flat chips.
+  openLocalTerminal: async () => {
+    const home = await window.bonsai.app.homeDir()
+    const tab: TabState = {
+      id: nextTabId(),
+      repoId: LOCAL_REPO_ID,
+      branch: LOCAL_BRANCH,
+      cwd: home,
+      title: 'local',
+    }
+    set((s) => ({
+      tabs: [...s.tabs, tab],
+      activeTabId: tab.id,
+      activeRepoId: LOCAL_REPO_ID,
+      activePane: 'terminal',
+    }))
+    get().persist()
   },
 
   closeTab: (id) => {
@@ -504,15 +634,38 @@ export const useApp = create<AppState>((set, get) => ({
     }
     window.bonsai.session.kill(id)
     set((s) => {
+      const closing = s.tabs.find((t) => t.id === id)
       const tabs = s.tabs.filter((t) => t.id !== id)
-      const activeTabId = s.activeTabId === id ? (tabs[tabs.length - 1]?.id ?? null) : s.activeTabId
       const processByTab = { ...s.processByTab }
       delete processByTab[id]
-      return { tabs, activeTabId, processByTab }
+      const turnsByTab = { ...s.turnsByTab }
+      delete turnsByTab[id]
+      let activeTabId = s.activeTabId
+      if (s.activeTabId === id) {
+        // Prefer the next tab in the SAME repo. If none, leave activeTabId null
+        // (per-repo empty state) but keep activeRepoId so we don't jump repos.
+        const sameRepo = tabs.filter((t) => closing && t.repoId === closing.repoId)
+        activeTabId = sameRepo[sameRepo.length - 1]?.id ?? null
+      }
+      return { tabs, activeTabId, processByTab, turnsByTab }
     })
     get().persist()
     void get().refreshStatus()
     void get().loadRunnables()
+    // Keep Local non-empty: if we just removed the last local tab, spawn a fresh
+    // one in the background. Doesn't change focus.
+    if (!get().tabs.some(isLocalTab)) {
+      const prevActiveTab = get().activeTabId
+      const prevActiveRepo = get().activeRepoId
+      void get()
+        .openLocalTerminal()
+        .then(() => {
+          if (prevActiveTab && prevActiveTab !== get().activeTabId) {
+            set({ activeTabId: prevActiveTab, activeRepoId: prevActiveRepo })
+          }
+        })
+        .catch(() => {})
+    }
   },
 
   // Live program title (OSC) → tab name, falling back to the branch in the UI.
@@ -527,9 +680,112 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   // Foreground process name for a tab's PTY (drives titles + busy indicator).
+  // Also detects idle↔busy transitions and snapshots the worktree at each one
+  // so the user can later view the diff for "what changed during this turn".
   setTabProcess: (id, name) => {
-    if (get().processByTab[id] === name) return
+    const prev = get().processByTab[id]
+    if (prev === name) return
     set((s) => ({ processByTab: { ...s.processByTab, [id]: name } }))
+
+    const tab = get().tabs.find((t) => t.id === id)
+    if (!tab || isLocalTab(tab)) return
+    const wasBusy = tabBusy(prev)
+    const isBusy = tabBusy(name)
+
+    // idle → busy: open a new turn with a pre-snapshot.
+    if (!wasBusy && isBusy) {
+      const turn: TurnRecord = {
+        id: nextTurnId(),
+        tabId: id,
+        cwd: tab.cwd,
+        command: name,
+        startedAt: Date.now(),
+        preRef: '',
+      }
+      // Push the placeholder immediately so the UI shows "in progress".
+      set((s) => {
+        const list = s.turnsByTab[id] ?? []
+        const next = [turn, ...list].slice(0, MAX_TURNS_PER_TAB)
+        return { turnsByTab: { ...s.turnsByTab, [id]: next } }
+      })
+      void window.bonsai.git
+        .turnSnapshot(tab.cwd)
+        .then((sha) => {
+          set((s) => {
+            const list = s.turnsByTab[id] ?? []
+            return {
+              turnsByTab: {
+                ...s.turnsByTab,
+                [id]: list.map((t) => (t.id === turn.id ? { ...t, preRef: sha } : t)),
+              },
+            }
+          })
+        })
+        .catch(() => {})
+      return
+    }
+
+    // busy → idle: close the most recent unfinished turn for this tab.
+    if (wasBusy && !isBusy) {
+      const list = get().turnsByTab[id] ?? []
+      const open = list.find((t) => !t.endedAt)
+      if (!open) return
+      void window.bonsai.git
+        .turnSnapshot(tab.cwd)
+        .then((sha) => {
+          const endedAt = Date.now()
+          set((s) => {
+            const cur = s.turnsByTab[id] ?? []
+            return {
+              turnsByTab: {
+                ...s.turnsByTab,
+                [id]: cur.map((t) =>
+                  t.id === open.id ? { ...t, postRef: sha, endedAt } : t,
+                ),
+              },
+            }
+          })
+        })
+        .catch(() => {})
+    }
+  },
+
+  // Click handler for the Turns panel — fetches the diff once and caches it.
+  selectTurn: async (turnId) => {
+    set({ activeTurnId: turnId })
+    if (!turnId) return
+    if (get().turnDiffById[turnId]) return
+    const turn = Object.values(get().turnsByTab)
+      .flat()
+      .find((t) => t.id === turnId)
+    if (!turn) return
+    const text = await window.bonsai.git.turnDiff(
+      turn.cwd,
+      turn.preRef,
+      turn.postRef ?? '',
+    )
+    set((s) => ({ turnDiffById: { ...s.turnDiffById, [turnId]: text } }))
+  },
+
+  // Manual "end turn now" — useful when an AI runs inside a long-lived process
+  // (dev server, REPL) that never returns to the idle shell.
+  endTurnNow: async (tabId) => {
+    const tab = get().tabs.find((t) => t.id === tabId)
+    if (!tab || isLocalTab(tab)) return
+    const list = get().turnsByTab[tabId] ?? []
+    const open = list.find((t) => !t.endedAt)
+    if (!open) return
+    const sha = await window.bonsai.git.turnSnapshot(tab.cwd)
+    const endedAt = Date.now()
+    set((s) => {
+      const cur = s.turnsByTab[tabId] ?? []
+      return {
+        turnsByTab: {
+          ...s.turnsByTab,
+          [tabId]: cur.map((t) => (t.id === open.id ? { ...t, postRef: sha, endedAt } : t)),
+        },
+      }
+    })
   },
 
   togglePinTab: (id) => {
@@ -567,6 +823,7 @@ export const useApp = create<AppState>((set, get) => ({
         expandedRepoIds: [...s.expandedRepoIds],
         expandedBranches: [...s.expandedBranches],
         activeTabId: s.activeTabId,
+        activeRepoId: s.activeRepoId,
       },
     })
   },
@@ -590,7 +847,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   refreshStatus: async () => {
     const tab = get().activeTab()
-    if (!tab) return
+    if (!tab || isLocalTab(tab)) return
     try {
       const status = await window.bonsai.git.status(tab.cwd)
       set((s) => ({ statusByCwd: { ...s.statusByCwd, [tab.cwd]: status } }))
@@ -691,7 +948,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   openCode: (file = '', source) => {
     const tab = get().activeTab()
-    if (!tab) return
+    if (!tab || isLocalTab(tab)) return
     void window.bonsai.window.openCode(tab.cwd, file, source)
   },
 
@@ -736,7 +993,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   loadRunnables: async () => {
     const tab = get().activeTab()
-    if (!tab) return
+    if (!tab || isLocalTab(tab)) return
     try {
       const groups = await window.bonsai.git.runnables(tab.cwd)
       set((s) => ({ runnablesByCwd: { ...s.runnablesByCwd, [tab.cwd]: groups } }))
@@ -1009,6 +1266,10 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   newTabOnActive: () => {
+    if (get().activeRepoId === LOCAL_REPO_ID) {
+      void get().openLocalTerminal()
+      return
+    }
     const tab = get().activeTab()
     if (tab) void get().openBranch(tab.repoId, tab.branch, true)
   },
@@ -1040,10 +1301,18 @@ export const useApp = create<AppState>((set, get) => ({
   deleteBranch: async (repoId, branch) => {
     try {
       await window.bonsai.git.deleteBranch(repoId, branch, true)
-      set((s) => ({
-        tabs: s.tabs.filter((t) => !(t.repoId === repoId && t.branch === branch)),
-        modal: null,
-      }))
+      // Kill PTYs for any terminals on this branch — git just removed the worktree.
+      const dead = get().tabs.filter((t) => t.repoId === repoId && t.branch === branch)
+      for (const t of dead) window.bonsai.session.kill(t.id)
+      set((s) => {
+        const tabs = s.tabs.filter((t) => !(t.repoId === repoId && t.branch === branch))
+        const processByTab = { ...s.processByTab }
+        for (const t of dead) delete processByTab[t.id]
+        const activeTabId = dead.some((t) => t.id === s.activeTabId)
+          ? tabs.filter((t) => t.repoId === repoId).slice(-1)[0]?.id ?? null
+          : s.activeTabId
+        return { tabs, processByTab, activeTabId, modal: null }
+      })
       await get().reloadBranches(repoId)
       get().persist()
     } catch (err) {

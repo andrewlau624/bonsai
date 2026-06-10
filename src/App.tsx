@@ -20,6 +20,8 @@ export default function App() {
   const {
     tabs,
     activeTabId,
+    activeRepoId,
+    repos,
     closeTab,
     init,
     scOpen,
@@ -84,9 +86,16 @@ export default function App() {
   }, [setSettingsOpen, openPalette, closePalette, toggleSourceControl, newTabOnActive, closeTab])
 
   const tab = activeTab()
-  const status = tab ? statusByCwd[tab.cwd] : undefined
+  const isLocal = tab?.repoId === '__local__' || activeRepoId === '__local__'
+  const status = tab && !isLocal ? statusByCwd[tab.cwd] : undefined
   const changeCount = status?.files.length ?? 0
   const collapsed = config?.sidebarCollapsed ?? false
+  const activeRepoName =
+    activeRepoId === '__local__'
+      ? 'Local'
+      : repos.find((r) => r.id === activeRepoId)?.name ?? ''
+  const repoHasNoTabs =
+    !!activeRepoId && !tabs.some((t) => t.repoId === activeRepoId)
 
   return (
     <div className="app">
@@ -106,9 +115,11 @@ export default function App() {
               <button className="icon-btn" title="Reveal in Finder" onClick={revealActive}>
                 <Icon name="reveal" size={15} />
               </button>
-              <button className="icon-btn" title="Open in editor" onClick={openActiveInEditor}>
-                <Icon name="external" size={15} />
-              </button>
+              {!isLocal && (
+                <button className="icon-btn" title="Open in editor" onClick={openActiveInEditor}>
+                  <Icon name="external" size={15} />
+                </button>
+              )}
               {(isWebApp() || previewTabs.length > 0) && <PortsMenu variant="globe" />}
             </>
           )}
@@ -119,7 +130,7 @@ export default function App() {
             className={`sc-toggle-btn ${scOpen ? 'on' : ''}`}
             onClick={toggleSourceControl}
             title="Source Control (⌘B)"
-            disabled={!tab}
+            disabled={!tab || isLocal}
           >
             <Icon name="commit" size={15} />
             <span>Changes</span>
@@ -135,7 +146,7 @@ export default function App() {
                 className="pane-terminals"
                 style={{ display: activePane === 'terminal' ? 'block' : 'none' }}
               >
-                {tabs.length === 0 && (
+                {tabs.length === 0 && !activeRepoId && (
                   <div className="placeholder">
                     <Logo size={44} className="placeholder-mark" />
                     <h2>Bonsai</h2>
@@ -144,6 +155,17 @@ export default function App() {
                       Each branch gets its own git worktree — and your <code>.env</code> files are
                       carried in automatically. Press <kbd>⌘K</kbd> to jump anywhere.
                     </p>
+                  </div>
+                )}
+                {repoHasNoTabs && (
+                  <div className="placeholder placeholder-empty-repo">
+                    <Icon name={activeRepoId === '__local__' ? 'terminal' : 'repo'} size={18} />
+                    <span className="empty-repo-name">{activeRepoName || 'No tabs open'}</span>
+                    <span className="dim">
+                      {activeRepoId === '__local__'
+                        ? 'No local terminals open. Press ⌘T or click + to start one.'
+                        : 'No tabs open in this repo. Pick a branch in the sidebar or press ⌘T.'}
+                    </span>
                   </div>
                 )}
                 {tabs.map((t) => (

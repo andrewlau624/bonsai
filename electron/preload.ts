@@ -22,6 +22,7 @@ const api: BonsaiApi = {
     list: () => ipcRenderer.invoke('repos:list') as Promise<Repo[]>,
     add: () => ipcRenderer.invoke('repos:add') as Promise<Repo | null>,
     remove: (id) => ipcRenderer.invoke('repos:remove', id) as Promise<void>,
+    reorder: (ids) => ipcRenderer.invoke('repos:reorder', ids) as Promise<Repo[]>,
     branches: (repoId) => ipcRenderer.invoke('repos:branches', repoId) as Promise<Branch[]>,
   },
   worktree: {
@@ -50,9 +51,14 @@ const api: BonsaiApi = {
         content: string
         truncated: boolean
       }>,
+    writeFile: (cwd, relPath, content) =>
+      ipcRenderer.invoke('git:writeFile', cwd, relPath, content) as Promise<void>,
     listDir: (cwd, relPath) =>
       ipcRenderer.invoke('git:listDir', cwd, relPath) as Promise<DirEntry[]>,
     log: (cwd) => ipcRenderer.invoke('git:log', cwd) as Promise<import('../shared/types').Commit[]>,
+    turnSnapshot: (cwd) => ipcRenderer.invoke('git:turnSnapshot', cwd) as Promise<string>,
+    turnDiff: (cwd, base, head) =>
+      ipcRenderer.invoke('git:turnDiff', cwd, base, head) as Promise<string>,
     discard: (cwd, file) => ipcRenderer.invoke('git:discard', cwd, file) as Promise<void>,
     scripts: (cwd) =>
       ipcRenderer.invoke('git:scripts', cwd) as Promise<Array<{ name: string; command: string }>>,
@@ -158,6 +164,7 @@ const api: BonsaiApi = {
     reveal: (p) => ipcRenderer.invoke('app:reveal', p) as Promise<void>,
     openInEditor: (p) => ipcRenderer.invoke('app:openInEditor', p) as Promise<boolean>,
     pathForFile: (file) => webUtils.getPathForFile(file),
+    homeDir: () => ipcRenderer.invoke('app:homeDir') as Promise<string>,
   },
   onOpenSettings: (cb) => {
     const listener = () => cb()

@@ -1,5 +1,6 @@
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron'
 import path from 'node:path'
+import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import type {
@@ -54,6 +55,23 @@ export function registerIpc(): void {
     store.setRepos(store.getRepos().filter((r) => r.id !== id))
   })
 
+  ipcMain.handle('repos:reorder', (_e, orderedIds: string[]) => {
+    const current = store.getRepos()
+    const byId = new Map(current.map((r) => [r.id, r]))
+    const reordered: Repo[] = []
+    for (const id of orderedIds) {
+      const r = byId.get(id)
+      if (r) {
+        reordered.push(r)
+        byId.delete(id)
+      }
+    }
+    // Append any repos missing from the ordered list so we never lose one.
+    for (const r of byId.values()) reordered.push(r)
+    store.setRepos(reordered)
+    return reordered
+  })
+
   ipcMain.handle('repos:branches', async (_e, repoId: string) => {
     const repo = store.getRepos().find((r) => r.id === repoId)
     if (!repo) return []
@@ -99,10 +117,17 @@ export function registerIpc(): void {
   ipcMain.handle('git:readFile', (_e, cwd: string, relPath: string) =>
     gitOps.readFile(cwd, relPath),
   )
+  ipcMain.handle('git:writeFile', (_e, cwd: string, relPath: string, content: string) =>
+    gitOps.writeFile(cwd, relPath, content),
+  )
   ipcMain.handle('git:listDir', (_e, cwd: string, relPath: string) =>
     gitOps.listDir(cwd, relPath),
   )
   ipcMain.handle('git:log', (_e, cwd: string) => gitOps.log(cwd))
+  ipcMain.handle('git:turnSnapshot', (_e, cwd: string) => gitOps.turnSnapshot(cwd))
+  ipcMain.handle('git:turnDiff', (_e, cwd: string, base: string, head: string) =>
+    gitOps.turnDiff(cwd, base, head),
+  )
   ipcMain.handle('git:discard', (_e, cwd: string, file: string) => gitOps.discardFile(cwd, file))
   ipcMain.handle('git:scripts', (_e, cwd: string) => gitOps.packageScripts(cwd))
   ipcMain.handle('git:makeTargets', (_e, cwd: string) => gitOps.makeTargets(cwd))
@@ -159,6 +184,7 @@ export function registerIpc(): void {
   ipcMain.handle('window:openBrowser', (_e, url: string) => openBrowserWindow(url))
   ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('app:reveal', (_e, p: string) => shell.openPath(p))
+  ipcMain.handle('app:homeDir', () => os.homedir())
   ipcMain.handle('app:openInEditor', async (_e, p: string) => {
     for (const ed of ['code', 'cursor', 'subl', 'zed', 'webstorm']) {
       const ok = await new Promise<boolean>((resolve) => {

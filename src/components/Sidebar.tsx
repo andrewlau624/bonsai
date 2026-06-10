@@ -15,6 +15,7 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
     openBranch,
     toggleBranch,
     setActiveTab,
+    closeTab,
     requestDeleteBranch,
     checkoutBranch,
     branchesByRepo,
@@ -140,7 +141,7 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
           // Fall back to "Terminal N" when the tab is just an idle shell.
           const label = live === branch.name ? `Terminal ${i + 1}` : live
           return (
-            <button
+            <div
               key={t.id}
               className={`row tab-row ${activeTabId === t.id ? 'active' : ''}`}
               onClick={() => setActiveTab(t.id)}
@@ -152,7 +153,17 @@ function BranchRow({ repo, branch }: { repo: Repo; branch: Branch }) {
                 <Icon name="terminal" size={12} className="i-term" />
               )}
               <span className="ellipsis">{label}</span>
-            </button>
+              <button
+                className="tab-row-close"
+                title="Close tab (⌘W)"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  closeTab(t.id)
+                }}
+              >
+                <Icon name="close" size={11} />
+              </button>
+            </div>
           )
         })}
     </div>

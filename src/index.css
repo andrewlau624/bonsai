@@ -1,27 +1,29 @@
 :root {
-  --bg: #0b0f14;
-  --bg-elev: #11161d;
-  --bg-2: #161c24;
-  --bg-3: #1d2631;
-  --border: #232c38;
-  --border-soft: #19212b;
-  --text: #e6edf3;
-  --text-dim: #8b98a9;
-  --text-faint: #5c6773;
-  --accent: #45b884;
-  --accent-press: #3aa073;
-  --blue: #4aa8ff;
-  --purple: #b08cff;
-  --yellow: #d9a441;
-  --danger: #f0626b;
-  --add: #3fb950;
-  --del: #f0626b;
-  --add-bg: rgba(63, 185, 80, 0.13);
-  --del-bg: rgba(240, 98, 107, 0.12);
-  --radius: 9px;
-  --radius-sm: 6px;
-  --shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  --accent-ink: #04130c;
+  /* Codex defaults: near-black surfaces, hairline borders, sharp radii.
+   * The active theme overrides these at runtime via applyTheme(). */
+  --bg: #0d0d0d;
+  --bg-elev: #121212;
+  --bg-2: #171717;
+  --bg-3: #1f1f1f;
+  --border: #262626;
+  --border-soft: #1a1a1a;
+  --text: #ededed;
+  --text-dim: #9a9a9a;
+  --text-faint: #666666;
+  --accent: #c9a37c;
+  --accent-press: #b88f66;
+  --blue: #8ab4f8;
+  --purple: #c3a6ff;
+  --yellow: #e6c46a;
+  --danger: #e0707a;
+  --add: #7fb37f;
+  --del: #e0707a;
+  --add-bg: rgba(127, 179, 127, 0.10);
+  --del-bg: rgba(224, 112, 122, 0.10);
+  --radius: 5px;
+  --radius-sm: 4px;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --accent-ink: #1a1308;
   --border-width: 1px;
   --font-ui: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
@@ -61,9 +63,10 @@ button {
   gap: 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: 7px 12px;
-  font-size: 12.5px;
-  font-weight: 600;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
   cursor: pointer;
   transition: background 0.13s, border-color 0.13s, opacity 0.13s;
 }
@@ -72,11 +75,12 @@ button {
   font-size: 11.5px;
 }
 .btn.primary {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
 }
 .btn.primary:hover {
-  background: var(--accent-press);
+  background: var(--text-dim);
 }
 .btn.primary:disabled {
   opacity: 0.4;
@@ -127,15 +131,15 @@ button {
   color: var(--text);
 }
 .icon-btn.on {
-  background: rgba(69, 184, 132, 0.16);
-  color: var(--accent);
+  background: var(--bg-3);
+  color: var(--text);
 }
 .icon-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 .icon-btn.danger-hover:hover {
-  background: rgba(240, 98, 107, 0.16);
+  background: var(--bg-3);
   color: var(--danger);
 }
 .icon-btn.pill {
@@ -144,9 +148,10 @@ button {
 .icon-btn .count,
 .sc-toggle-btn .count {
   font-size: 10px;
-  font-weight: 700;
-  background: var(--accent);
-  color: var(--accent-ink);
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0 5px;
   min-width: 15px;
@@ -157,7 +162,7 @@ button {
 .sidebar {
   width: 270px;
   min-width: 210px;
-  background: var(--bg-elev);
+  background: var(--bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -179,12 +184,13 @@ button {
   gap: 8px;
 }
 .brand-mark {
-  color: var(--accent);
+  color: var(--text);
 }
 .brand-name {
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.2px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  color: var(--text);
 }
 .header-actions {
   display: flex;
@@ -314,6 +320,31 @@ button {
   background: var(--bg-2);
   color: var(--text);
 }
+/* Close button — hidden until row hover or active. */
+.tab-row-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex: none;
+  padding: 2px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.tab-row:hover .tab-row-close,
+.tab-row.active .tab-row-close {
+  opacity: 0.8;
+}
+.tab-row-close:hover {
+  opacity: 1;
+  background: var(--bg-3);
+  color: var(--danger);
+}
 .tab-row.active::before {
   content: '';
   position: absolute;
@@ -334,12 +365,14 @@ button {
   letter-spacing: 0.2px;
 }
 .badge.current {
-  background: rgba(69, 184, 132, 0.16);
-  color: var(--accent);
+  background: var(--bg-3);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 .badge.env {
-  background: rgba(217, 164, 65, 0.16);
-  color: var(--yellow);
+  background: var(--bg-3);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
 }
 
 .row-actions {
@@ -450,12 +483,23 @@ button {
   color: var(--text-dim);
   box-shadow: inset 0 0 0 1px var(--border);
 }
-/* Translucent color wash on the branch row only (not its terminal rows). */
+/* Flat colored side bar instead of a background wash. The branch row is a
+ * normal row; identity comes from the 3px rectangle on the left edge. */
 .branch.colored > .branch-row {
-  background: color-mix(in srgb, var(--branch-color) 13%, transparent);
+  position: relative;
 }
-.branch.colored > .branch-row:hover {
-  background: color-mix(in srgb, var(--branch-color) 22%, transparent);
+.branch.colored > .branch-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 1.5px;
+  background: var(--branch-color);
+}
+.branch.colored > .branch-row {
+  padding-left: 10px;
 }
 .branch.colored .row-label {
   color: var(--text);
@@ -488,6 +532,14 @@ button {
 }
 
 /* ---- Tab bar: two flat rows (repo / branch) matching the pane-tab section ---- */
+/* ---------- Tab strip (calm Codex-style hierarchy) ----------
+ * Three tiers, each at a different visual weight:
+ *   repo  → soft pill, slightly dimmer text, count chip
+ *   branch → smaller pill, branch-color dot, soft tint when expanded
+ *   tab    → rounded chip, inset color bar when active
+ *
+ * Only the active repo & active branch expand inline; siblings stay quiet pills.
+ */
 .tabbar {
   display: flex;
   flex-direction: column;
@@ -495,126 +547,186 @@ button {
 }
 .tabbar-row {
   display: flex;
-  align-items: stretch;
-  gap: 1px;
+  align-items: center;
+  gap: 4px;
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
-  background: var(--bg-elev);
-  border-bottom: var(--border-width) solid var(--border);
-  padding: 0 8px;
+  background: var(--bg);
+  padding: 4px 10px;
 }
 .tabbar-row::-webkit-scrollbar {
   height: 0;
 }
-/* Row 1: repo selector — the quieter parent level (smaller, fainter text). */
-.repo-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  max-width: 180px;
-  padding: 5px 10px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--text-faint);
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.12s, border-color 0.12s;
+/* Row 1: repo pills — always visible regardless of row 2's horizontal scroll. */
+.tabbar-repos {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 5px 10px 4px;
+  gap: 2px;
 }
-.repo-tab:hover {
-  color: var(--text-dim);
-}
-.repo-tab.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
-}
-.repo-tab.active svg {
-  color: var(--accent);
+/* Row 2: branches + terminals of the active repo. */
+.tabbar-branches {
+  border-bottom: 1px solid var(--border);
+  padding: 4px 10px 5px;
+  gap: 4px;
+  min-height: 32px;
 }
 
-/* Branch groups (multi-terminal) sit inline in the branch row. */
-.branch-grp {
+/* Repo pill — compact, always one click away. */
+.repo-pill {
   display: inline-flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 6px;
   flex: none;
+  max-width: 180px;
+  padding: 4px 9px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
 }
-/* The Ports group leads the row, separated from the branches. */
-.ports-grp {
-  margin-right: 6px;
-  padding-right: 6px;
-  border-right: 1px solid var(--border);
+.repo-pill:hover {
+  background: var(--bg-2);
+  color: var(--text-dim);
 }
-.ports-grp .branch-hd svg + svg {
-  color: var(--blue);
+.repo-pill.active {
+  background: var(--bg-2);
+  color: var(--text);
+  font-weight: 600;
 }
-.branch-hd {
+.repo-pill.empty {
+  color: var(--text-faint);
+  opacity: 0.7;
+}
+.repo-pill.drop-target {
   position: relative;
+}
+.repo-pill.drop-target::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--text);
+}
+.repo-pill.local svg:first-child {
+  color: var(--text-faint);
+}
+.repo-pill.active.local svg:first-child {
+  color: var(--text-dim);
+}
+
+/* Inline ports group at the start of row 2 — leads with a faint label. */
+.ports-grp {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   flex: none;
-  max-width: 170px;
-  padding: 7px 8px;
+  padding-right: 8px;
+  margin-right: 4px;
+  border-right: 1px solid var(--border-soft);
+}
+.ports-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 0 4px;
+}
+
+/* Branch sub-group inside the active repo. Soft tint when expanded; the branch
+ * color appears only as a tiny dot, never as a full row wash. */
+.branch-grp {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding: 1px 2px;
+  border-radius: 7px;
+  transition: background 0.12s;
+}
+/* Expanded branch group: a flat colored rectangle on the left edge. Drawn as a
+ * pseudo-element so it's an actual rectangle (4px wide, full row height) — not
+ * a thin inset line. Branch color belongs to the branch only; tab chips use a
+ * neutral accent so the two tiers never blur together. */
+.branch-grp {
+  position: relative;
+  padding-left: 10px;
+}
+.branch-grp::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 4px;
+  background: var(--branch-color, var(--border));
+  border-radius: 1px;
+}
+/* Branch header = chevron disclosure + clickable label. Both are real buttons
+ * with comfortable hit targets so it never feels like you're poking at a chip. */
+.branch-hd {
+  display: inline-flex;
+  align-items: stretch;
+  flex: none;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.branch-disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  padding: 0;
   background: none;
   border: none;
   color: var(--text-faint);
-  font-size: 12px;
-  font-weight: 600;
   cursor: pointer;
-  transition: color 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
-.branch-hd:hover {
-  color: var(--text-dim);
-}
-/* Solid branch-color bar anchors the header so it reads as the branch, not a tab. */
-.branch-grp.colored .branch-hd {
-  padding-left: 13px;
-}
-.branch-grp.colored .branch-hd::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 15px;
-  border-radius: 2px;
-  background: var(--branch-color);
-}
-/* Divider sets the branch header apart from its terminal tabs (only when open). */
-.branch-grp.expanded .branch-hd {
-  border-right: 1px solid var(--border);
-  margin-right: 4px;
-}
-.branch-grp.has-active .branch-hd {
-  color: var(--text-dim);
-}
-/* Color-tagged branch group: translucent color wash behind the whole group
- * (header + every tab), a touch stronger on the active tab. */
-.branch-grp.colored {
-  background: color-mix(in srgb, var(--branch-color) 13%, transparent);
-}
-/* Brighter labels so text reads clearly on the color wash (no muddy gray). */
-.branch-grp.colored .branch-hd,
-.branch-grp.colored .tab-chip {
+.branch-disc:hover {
+  background: var(--bg-3);
   color: var(--text);
 }
-.branch-grp.colored .branch-hd svg + svg {
-  color: var(--branch-color);
+.branch-disc .chevron {
+  transition: transform 0.14s ease;
 }
-.branch-grp.colored .tab-chip.active {
-  background: color-mix(in srgb, var(--branch-color) 18%, transparent);
-  border-bottom-color: var(--branch-color);
+.branch-disc .chevron.open {
+  transform: rotate(90deg);
 }
-.branch-grp.colored .tab-chip.active svg:first-child {
-  color: var(--branch-color);
+.branch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  max-width: 170px;
+  padding: 6px 10px 6px 4px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.branch-label:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.branch-grp.has-active .branch-label {
+  color: var(--text);
 }
 
-/* Terminal tab — same flat underline tab as Terminal/Preview. */
+/* Terminal chip — rounded, subtle. Active uses bg-2 + inset color bar (no underline). */
 .tab-chip {
   position: relative;
   display: inline-flex;
@@ -622,25 +734,26 @@ button {
   gap: 6px;
   flex: none;
   max-width: 200px;
-  padding: 7px 9px;
+  padding: 5px 9px;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: color 0.12s, border-color 0.12s, opacity 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
 .tab-chip:hover {
-  color: var(--text);
+  color: var(--text-dim);
+  background: var(--bg-3);
 }
 .tab-chip.active {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  background: var(--bg-3);
 }
 .tab-chip.active svg:first-child {
-  color: var(--accent);
+  color: var(--text);
 }
 .tab-name {
   overflow: hidden;
@@ -649,29 +762,31 @@ button {
 }
 .tab-count {
   font-size: 9.5px;
-  font-weight: 700;
-  min-width: 15px;
+  font-weight: 600;
+  min-width: 14px;
   text-align: center;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--bg-3);
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+}
+.repo-grp.active .repo-hd .tab-count {
   color: var(--text-dim);
 }
 .tab-chip:active {
-  opacity: 0.5;
+  opacity: 0.6;
 }
-/* Reorder feedback: an insertion line in the gap, not a tab highlight. */
 .tab-chip.drop-target::before {
   content: '';
   position: absolute;
-  left: -1px;
+  left: -3px;
   top: 4px;
   bottom: 4px;
   width: 2px;
   border-radius: 1px;
   background: var(--accent);
 }
-/* Running-process indicator (also reused in the sidebar terminal rows). */
 .tab-busy {
   width: 6px;
   height: 6px;
@@ -680,24 +795,26 @@ button {
   background: var(--accent);
 }
 
-/* New-terminal button at the end of the branch row. */
+/* + new-terminal button — quiet glyph at the end of the active group. */
 .tab-new {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  padding: 4px 7px;
+  padding: 4px 6px;
   background: none;
   border: none;
+  border-radius: 6px;
   color: var(--text-faint);
   cursor: pointer;
-  transition: color 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
 .tab-new:hover {
   color: var(--text);
+  background: var(--bg-3);
 }
 
-/* Pin + close: revealed on hover; pin stays lit when pinned. */
+/* Pin + close — revealed on hover so chips stay clean at rest. */
 .tab-pin,
 .tab-close {
   display: flex;
@@ -752,9 +869,9 @@ button {
   color: var(--text);
 }
 .sc-toggle-btn.on {
-  background: rgba(69, 184, 132, 0.16);
-  color: var(--accent);
-  border-color: transparent;
+  background: var(--bg-3);
+  color: var(--text);
+  border-color: var(--border);
 }
 .sc-toggle-btn:disabled {
   opacity: 0.4;
@@ -910,6 +1027,27 @@ button {
   font-size: 12px;
   line-height: 1.5;
 }
+/* Per-repo empty state — small horizontal strip near the top, not a giant
+ * centered hero. Used when activeRepoId has zero tabs. */
+.placeholder.placeholder-empty-repo {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  height: auto;
+  gap: 10px;
+  padding: 18px 22px;
+  text-align: left;
+  color: var(--text-faint);
+}
+.placeholder-empty-repo .empty-repo-name {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+}
+.placeholder-empty-repo .dim {
+  font-size: 12px;
+  max-width: none;
+}
 .dim {
   color: var(--text-faint);
 }
@@ -977,8 +1115,9 @@ button {
 .sc-syncing {
   padding: 6px 12px;
   font-size: 11.5px;
-  color: var(--accent);
-  background: rgba(69, 184, 132, 0.08);
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
 }
 
 .sc-empty {
@@ -1721,12 +1860,259 @@ button {
   white-space: pre;
 }
 
-/* ---------- Animations off ---------- */
+/* ---------- Turns panel ---------- */
+.turns-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.turns-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 11.5px;
+}
+.turns-rows {
+  list-style: none;
+  margin: 0;
+  padding: 6px 6px 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+.turn-row {
+  border-radius: var(--radius-sm);
+}
+.turn-row + .turn-row {
+  margin-top: 2px;
+}
+.turn-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text);
+  transition: background var(--mo-fast) var(--mo-ease);
+}
+.turn-main:hover {
+  background: var(--bg-2);
+}
+.turn-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.turn-cmd {
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.turn-time {
+  font-size: 11px;
+}
+.turn-row.in-progress .turn-main::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+/* ---------- Motion spectrum ----------
+ * Five named variables, set per level on :root via data-motion. Components use
+ * var(--mo-fast / --mo-base / --mo-slow) for transitions, and var(--mo-lift)
+ * for the hover-translateY multiplier so we can scale "expressiveness" without
+ * touching individual rules. The 'none' level zeroes everything. */
+:root {
+  --mo-fast: 0.10s;
+  --mo-base: 0.16s;
+  --mo-slow: 0.26s;
+  --mo-ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --mo-lift: 1px;
+  --mo-scale: 1.012;
+}
+[data-motion='none'] {
+  --mo-fast: 0s;
+  --mo-base: 0s;
+  --mo-slow: 0s;
+  --mo-lift: 0px;
+  --mo-scale: 1;
+}
+[data-motion='subtle'] {
+  --mo-fast: 0.08s;
+  --mo-base: 0.13s;
+  --mo-slow: 0.20s;
+  --mo-lift: 0px;
+  --mo-scale: 1;
+}
+[data-motion='normal'] {
+  --mo-fast: 0.10s;
+  --mo-base: 0.16s;
+  --mo-slow: 0.26s;
+  --mo-lift: 1px;
+  --mo-scale: 1.012;
+}
+[data-motion='expressive'] {
+  --mo-fast: 0.12s;
+  --mo-base: 0.20s;
+  --mo-slow: 0.34s;
+  --mo-lift: 2px;
+  --mo-scale: 1.025;
+}
+[data-motion='none'] *,
+[data-motion='none'] *::before,
+[data-motion='none'] *::after,
 [data-animations='off'] *,
 [data-animations='off'] *::before,
 [data-animations='off'] *::after {
   transition: none !important;
   animation: none !important;
+}
+
+/* Clean micro-animations layered on at normal+ (skipped at subtle/none because
+ * --mo-lift/--mo-scale are zero/identity there — same rule, no visual effect). */
+.btn,
+.icon-btn,
+.repo-pill,
+.tab-chip,
+.tab-new,
+.sc-toggle-btn {
+  transition:
+    background var(--mo-fast) var(--mo-ease),
+    color var(--mo-fast) var(--mo-ease),
+    border-color var(--mo-fast) var(--mo-ease),
+    transform var(--mo-base) var(--mo-ease),
+    box-shadow var(--mo-base) var(--mo-ease);
+}
+.btn:hover,
+.icon-btn:hover,
+.tab-new:hover {
+  transform: translateY(calc(var(--mo-lift) * -1));
+}
+.btn:active,
+.icon-btn:active,
+.tab-new:active {
+  transform: translateY(0);
+}
+.tab-chip:hover {
+  transform: scale(var(--mo-scale));
+}
+.repo-pill:hover {
+  transform: translateY(calc(var(--mo-lift) * -1));
+}
+/* Chevron easing — gets snappier at expressive without becoming bouncy. */
+.chevron,
+.branch-disc .chevron {
+  transition: transform var(--mo-base) var(--mo-ease);
+}
+
+/* Modal/overlay appear: fade + tiny scale. */
+@keyframes bonsai-modal-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes bonsai-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+[data-motion]:not([data-motion='none']) .modal,
+[data-motion]:not([data-motion='none']) .palette,
+[data-motion]:not([data-motion='none']) .branch-picker {
+  animation: bonsai-modal-in var(--mo-slow) var(--mo-ease);
+}
+[data-motion]:not([data-motion='none']) .modal-scrim,
+[data-motion]:not([data-motion='none']) .color-scrim {
+  animation: bonsai-overlay-in var(--mo-base) var(--mo-ease);
+}
+
+/* ---------- Branch bar width ----------
+ * `data-branchbar` controls how wide the colored rectangle is. Both the sidebar
+ * branch-row::before and the tab-strip branch-grp::before respond. */
+[data-branchbar='thin'] .branch-grp::before,
+[data-branchbar='thin'] .branch.colored > .branch-row::before {
+  width: 2px;
+}
+[data-branchbar='medium'] .branch-grp::before,
+[data-branchbar='medium'] .branch.colored > .branch-row::before {
+  width: 4px;
+}
+[data-branchbar='thick'] .branch-grp::before,
+[data-branchbar='thick'] .branch.colored > .branch-row::before {
+  width: 6px;
+}
+[data-branchbar='thin'] .branch-grp,
+[data-branchbar='thin'] .branch.colored > .branch-row {
+  padding-left: 8px;
+}
+[data-branchbar='thick'] .branch-grp,
+[data-branchbar='thick'] .branch.colored > .branch-row {
+  padding-left: 12px;
+}
+
+/* ---------- Tab style ----------
+ * filled = current default (bg-3 fill); outlined = bg + border ring; minimal = text only. */
+[data-tabstyle='outlined'] .tab-chip.active {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+[data-tabstyle='minimal'] .tab-chip.active {
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+}
+[data-tabstyle='minimal'] .tab-chip:hover {
+  background: transparent;
+}
+
+/* ---------- Tab density ---------- */
+[data-tabdensity='compact'] .tabbar-repos {
+  padding: 3px 10px 2px;
+}
+[data-tabdensity='compact'] .tabbar-branches {
+  padding: 2px 10px 3px;
+  min-height: 28px;
+}
+[data-tabdensity='compact'] .tab-chip,
+[data-tabdensity='compact'] .repo-pill,
+[data-tabdensity='compact'] .branch-label {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+[data-tabdensity='spacious'] .tabbar-repos {
+  padding: 8px 12px 7px;
+}
+[data-tabdensity='spacious'] .tabbar-branches {
+  padding: 7px 12px 8px;
+  min-height: 40px;
+}
+[data-tabdensity='spacious'] .tab-chip,
+[data-tabdensity='spacious'] .repo-pill,
+[data-tabdensity='spacious'] .branch-label {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* ---------- Topbar density ---------- */
+[data-topbar='compact'] .topbar {
+  padding: 3px 12px;
+  padding-top: 32px;
+}
+[data-topbar='compact'] .topbar .icon-btn {
+  padding: 3px;
 }
 
 /* ---------- Drawer segmented header ---------- */
@@ -1842,7 +2228,7 @@ button {
   padding: 2px 9px;
   border-radius: 999px;
   text-transform: capitalize;
-  background: rgba(63, 185, 80, 0.16);
+  background: var(--add-bg);
   color: var(--add);
 }
 .pr-state.closed,
@@ -2121,13 +2507,53 @@ button {
   padding: 1px 7px;
   border-radius: 999px;
 }
+/* Unsaved-changes indicator next to the filename. */
+.cv-dot {
+  color: var(--accent);
+  margin-left: 6px;
+  font-size: 14px;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+/* CodeMirror fills the entire .cv-code container and adopts theme tokens. */
+.cv-cm,
+.cv-cm .cm-editor {
+  height: 100%;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.cv-cm .cm-editor.cm-focused {
+  outline: none;
+}
+.cv-cm .cm-scroller {
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+.cv-cm .cm-gutters {
+  background: var(--bg);
+  color: var(--text-faint);
+  border-right: 1px solid var(--border-soft);
+}
+.cv-cm .cm-activeLineGutter,
+.cv-cm .cm-activeLine {
+  background: var(--bg-2);
+}
+.cv-cm .cm-cursor {
+  border-left-color: var(--accent);
+}
+.cv-cm .cm-selectionBackground,
+.cv-cm .cm-content ::selection {
+  background: var(--bg-3) !important;
+}
 .cv-code {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.6;
-  padding: 8px 0;
+  padding: 0;
 }
 .cv-empty {
   flex: 1;
@@ -2331,11 +2757,11 @@ button.sc-file:hover {
   color: var(--text-dim);
 }
 .review-state.approved {
-  background: rgba(63, 185, 80, 0.16);
+  background: var(--add-bg);
   color: var(--add);
 }
 .review-state.changes_requested {
-  background: rgba(240, 98, 107, 0.16);
+  background: var(--del-bg);
   color: var(--del);
 }
 .pr-reply {

@@ -45,6 +45,55 @@ const ansiDark: Omit<TerminalPalette, 'background' | 'foreground' | 'cursor' | '
 
 export const THEMES: Theme[] = [
   {
+    id: 'codex',
+    name: 'Codex',
+    group: 'Dark',
+    swatch: ['#0d0d0d', '#ededed', '#c9a37c'],
+    vars: {
+      '--bg': '#0d0d0d',
+      '--bg-elev': '#121212',
+      '--bg-2': '#171717',
+      '--bg-3': '#1f1f1f',
+      '--border': '#262626',
+      '--border-soft': '#1a1a1a',
+      '--text': '#ededed',
+      '--text-dim': '#9a9a9a',
+      '--text-faint': '#666666',
+      '--accent': '#c9a37c',
+      '--accent-press': '#b88f66',
+      '--accent-ink': '#1a1308',
+      '--blue': '#8ab4f8',
+      '--purple': '#c3a6ff',
+      '--yellow': '#e6c46a',
+      '--danger': '#e0707a',
+      '--add': '#7fb37f',
+      '--del': '#e0707a',
+      '--add-bg': 'rgba(127,179,127,0.10)',
+      '--del-bg': 'rgba(224,112,122,0.10)',
+      '--radius': '5px',
+      '--radius-sm': '4px',
+      '--shadow': '0 4px 16px rgba(0,0,0,0.4)',
+      '--font-ui': SANS,
+      '--font-mono': MONO,
+      '--border-width': '1px',
+    },
+    terminal: {
+      background: '#0d0d0d',
+      foreground: '#ededed',
+      cursor: '#c9a37c',
+      selectionBackground: '#2a2a2a',
+      black: '#3a3a3a',
+      red: '#e0707a',
+      green: '#7fb37f',
+      yellow: '#e6c46a',
+      blue: '#8ab4f8',
+      magenta: '#c3a6ff',
+      cyan: '#7fc3c3',
+      white: '#c8c8c8',
+      brightBlack: '#6e6e6e',
+    },
+  },
+  {
     id: 'modern',
     name: 'Modern',
     group: 'Dark',
@@ -347,7 +396,7 @@ export const THEMES: Theme[] = [
   },
 ]
 
-export const DEFAULT_THEME = 'modern'
+export const DEFAULT_THEME = 'codex'
 
 export function getTheme(id: string): Theme {
   return THEMES.find((t) => t.id === id) ?? THEMES[0]
@@ -401,7 +450,13 @@ export interface StyleOptions {
   density: 'comfortable' | 'compact'
   uiFont: keyof typeof UI_FONTS
   corners: keyof typeof CORNERS
+  /** @deprecated use motion. Kept for backward compat with old configs. */
   animations: boolean
+  motion?: 'none' | 'subtle' | 'normal' | 'expressive'
+  branchBarWidth?: 'thin' | 'medium' | 'thick'
+  tabStyle?: 'filled' | 'outlined' | 'minimal'
+  tabDensity?: 'compact' | 'comfortable' | 'spacious'
+  topbarDensity?: 'compact' | 'comfortable'
   accent: string
   accentColor?: string
   uiScale?: string
@@ -450,7 +505,15 @@ export function applyTheme(id: string, opts: StyleOptions): void {
   root.dataset.theme = theme.id
   root.dataset.group = theme.group.toLowerCase()
   root.dataset.density = opts.density
-  root.dataset.animations = opts.animations ? 'on' : 'off'
+  // Motion: 'none' → legacy animations:off. Otherwise drive via data-motion and
+  // CSS variables defined under each level in index.css.
+  const motion = opts.motion ?? (opts.animations ? 'normal' : 'none')
+  root.dataset.motion = motion
+  root.dataset.animations = motion === 'none' ? 'off' : 'on'
+  root.dataset.branchbar = opts.branchBarWidth ?? 'medium'
+  root.dataset.tabstyle = opts.tabStyle ?? 'filled'
+  root.dataset.tabdensity = opts.tabDensity ?? 'comfortable'
+  root.dataset.topbar = opts.topbarDensity ?? 'comfortable'
   root.dataset.uifont = opts.uiFont
   root.dataset.transparency = opts.reduceTransparency ? 'off' : 'on'
   // Whole-window zoom via Chromium page zoom (keeps layout/structure intact;

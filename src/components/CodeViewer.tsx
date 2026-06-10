@@ -1,8 +1,77 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import type { DirEntry, CodeDiffSource } from '../../shared/types'
 import { applyConfigStyle } from '../themes'
-import { highlight } from '../highlight'
 import { Icon } from './Icon'
+import CodeMirror from '@uiw/react-codemirror'
+import { EditorView, keymap } from '@codemirror/view'
+import { Prec } from '@codemirror/state'
+import { javascript } from '@codemirror/lang-javascript'
+import { json } from '@codemirror/lang-json'
+import { css as cssLang } from '@codemirror/lang-css'
+import { html } from '@codemirror/lang-html'
+import { python } from '@codemirror/lang-python'
+import { markdown } from '@codemirror/lang-markdown'
+import { rust } from '@codemirror/lang-rust'
+import { cpp } from '@codemirror/lang-cpp'
+import { sql } from '@codemirror/lang-sql'
+import { xml } from '@codemirror/lang-xml'
+import { yaml } from '@codemirror/lang-yaml'
+import { go } from '@codemirror/lang-go'
+
+// File extension → CodeMirror language extension.
+function languageFor(file: string) {
+  const m = /\.([^./]+)$/.exec(file)
+  const ext = (m?.[1] ?? '').toLowerCase()
+  switch (ext) {
+    case 'ts':
+    case 'tsx':
+      return javascript({ jsx: ext === 'tsx', typescript: true })
+    case 'js':
+    case 'jsx':
+    case 'mjs':
+    case 'cjs':
+      return javascript({ jsx: ext === 'jsx' })
+    case 'json':
+      return json()
+    case 'css':
+    case 'scss':
+    case 'sass':
+    case 'less':
+      return cssLang()
+    case 'html':
+    case 'htm':
+    case 'svelte':
+    case 'vue':
+      return html()
+    case 'py':
+      return python()
+    case 'md':
+    case 'mdx':
+    case 'markdown':
+      return markdown()
+    case 'rs':
+      return rust()
+    case 'c':
+    case 'cc':
+    case 'cpp':
+    case 'cxx':
+    case 'h':
+    case 'hpp':
+      return cpp()
+    case 'sql':
+      return sql()
+    case 'xml':
+    case 'svg':
+      return xml()
+    case 'yaml':
+    case 'yml':
+      return yaml()
+    case 'go':
+      return go()
+    default:
+      return null
+  }
+}
 
 function dirOf(p: string): string {
   const i = p.lastIndexOf('/')
@@ -85,16 +154,19 @@ export function CodeViewer({
   const [entries, setEntries] = useState<DirEntry[]>([])
   const [file, setFile] = useState<string | null>(null)
   const [content, setContent] = useState('')
-  const [html, setHtml] = useState<string | null>(null)
+  const [savedContent, setSavedContent] = useState('')
   const [truncated, setTruncated] = useState(false)
   const [showHidden, setShowHidden] = useState(true)
   const [lineNumbers, setLineNumbers] = useState(true)
-  const [syntax, setSyntax] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [treeWidth, setTreeWidth] = useState(280)
   const [treeOpen, setTreeOpen] = useState(true)
   const [change, setChange] = useState<ChangeMap>(EMPTY_CHANGE)
   const dragging = useRef(false)
   const sourceRef = useRef<CodeDiffSource | undefined>(initialSource)
+  // Mirror dirty state in a ref so the save handler / file-switch confirm see
+  // the latest value without re-creating the keymap on every keystroke.
+  const useRefDirty = useRef(false)
   // Per-file diff cache for PR/commit sources (fetched once as one blob).
   const diffMapRef = useRef<Promise<Record<string, string>> | null>(null)
 
@@ -131,17 +203,16 @@ export function CodeViewer({
 
   const open = useCallback(
     async (relPath: string) => {
+      // Guard against losing in-progress edits when switching files.
+      const dirty = useRefDirty.current
+      if (dirty && !confirm('You have unsaved changes. Discard them?')) return
       const { content: c, truncated: t } = await window.bonsai.git.readFile(cwd, relPath)
       setFile(relPath)
       setContent(c)
+      setSavedContent(c)
       setTruncated(t)
-      setHtml(null)
       setChange(EMPTY_CHANGE)
       void browse(dirOf(relPath))
-      if (syntax) {
-        const hl = await highlight(c, relPath)
-        setHtml(hl)
-      }
       if (sourceRef.current) {
         try {
           setChange(computeChangeMap(await diffForFile(relPath)))
@@ -150,7 +221,7 @@ export function CodeViewer({
         }
       }
     },
-    [cwd, browse, syntax, diffForFile],
+    [cwd, browse, diffForFile],
   )
 
   useEffect(() => {
@@ -158,9 +229,78 @@ export function CodeViewer({
       applyConfigStyle(c)
       setShowHidden(c.modes.showHiddenFiles !== false)
       setLineNumbers(c.codeLineNumbers !== false)
-      setSyntax(c.syntaxHighlight !== false)
     })
   }, [])
+
+  // Compute + persist dirty state.
+  const dirty = content !== savedContent
+  useEffect(() => {
+    useRefDirty.current = dirty
+  }, [dirty])
+
+  const save = useCallback(async () => {
+    if (!file || !dirty || saving) return
+    setSaving(true)
+    try {
+      await window.bonsai.git.writeFile(cwd, file, content)
+      setSavedContent(content)
+    } catch (err) {
+      alert(`Save failed:\n${(err as Error).message}`)
+    } finally {
+      setSaving(false)
+    }
+  }, [cwd, file, content, dirty, saving])
+
+  // ⌘S / Ctrl+S anywhere in the window saves.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        void save()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [save])
+
+  // Warn before the user closes the window with unsaved edits.
+  useEffect(() => {
+    const onUnload = (e: BeforeUnloadEvent) => {
+      if (useRefDirty.current) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', onUnload)
+    return () => window.removeEventListener('beforeunload', onUnload)
+  }, [])
+
+  // CodeMirror keymap: ⌘S inside the editor itself also saves (higher-prec so
+  // it wins over default keymaps that some browsers attach to Cmd+S).
+  const cmKeymap = useMemo(
+    () =>
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Mod-s',
+            preventDefault: true,
+            run: () => {
+              void save()
+              return true
+            },
+          },
+        ]),
+      ),
+    [save],
+  )
+
+  const cmLang = useMemo(() => (file ? languageFor(file) : null), [file])
+  const cmExtensions = useMemo(() => {
+    const ext = [cmKeymap, EditorView.lineWrapping]
+    if (cmLang) ext.push(cmLang)
+    return ext
+  }, [cmKeymap, cmLang])
 
   useEffect(() => {
     if (initialFile) void open(initialFile)
@@ -192,7 +332,6 @@ export function CodeViewer({
 
   const visible = showHidden ? entries : entries.filter((e) => !e.name.startsWith('.'))
   const crumbs = dir ? dir.split('/') : []
-  const lineCount = content ? content.split('\n').length : 0
 
   return (
     <div className="cv">
@@ -252,44 +391,43 @@ export function CodeViewer({
                 </button>
               )}
               <Icon name="file" size={14} />
-              <span className="cv-file-name">{file}</span>
+              <span className="cv-file-name">
+                {file}
+                {dirty && <span className="cv-dot" title="Unsaved changes">●</span>}
+              </span>
               {change.added.size > 0 && <span className="cv-change-add">+{change.added.size}</span>}
               {truncated && <span className="cv-trunc">truncated</span>}
+              <button
+                className="btn sm"
+                style={{ marginLeft: 'auto' }}
+                onClick={() => void save()}
+                disabled={!dirty || saving}
+                title="Save (⌘S)"
+              >
+                {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
+              </button>
             </header>
             <div className="cv-code">
-              {lineNumbers && (
-                <div className="cv-gutter" aria-hidden>
-                  {Array.from({ length: lineCount }, (_, i) => {
-                    const n = i + 1
-                    const isAdd = change.added.has(n)
-                    const isDel = change.delBefore.has(n)
-                    const last = n === lineCount && change.delAtEnd
-                    return (
-                      <div
-                        key={i}
-                        className={
-                          'cv-gline' +
-                          (isAdd ? ' add' : '') +
-                          (isDel ? ' del' : '') +
-                          (last ? ' del-end' : '')
-                        }
-                      >
-                        <span className="cv-sign">{isAdd ? '+' : ''}</span>
-                        <span className="cv-num">{n}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              {html != null ? (
-                <pre className="cv-pre hljs">
-                  <code dangerouslySetInnerHTML={{ __html: html }} />
-                </pre>
-              ) : (
-                <pre className="cv-pre">
-                  <code>{content}</code>
-                </pre>
-              )}
+              <CodeMirror
+                className="cv-cm"
+                value={content}
+                height="100%"
+                theme="dark"
+                basicSetup={{
+                  lineNumbers,
+                  foldGutter: true,
+                  highlightActiveLine: true,
+                  highlightActiveLineGutter: true,
+                  highlightSelectionMatches: true,
+                  searchKeymap: true,
+                  closeBrackets: true,
+                  autocompletion: false,
+                  bracketMatching: true,
+                  indentOnInput: true,
+                }}
+                extensions={cmExtensions}
+                onChange={(v) => setContent(v)}
+              />
             </div>
           </>
         ) : (

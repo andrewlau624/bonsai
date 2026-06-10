@@ -195,6 +195,12 @@ export type Corners = 'sharp' | 'soft' | 'round'
 export type CursorStyle = 'bar' | 'block' | 'underline'
 export type UiScale = 'small' | 'normal' | 'large'
 export type MonoFont = 'system' | 'jetbrains' | 'fira' | 'ibm' | 'commit' | 'mono45'
+/** Animation intensity. Drives all UI transitions via CSS custom properties. */
+export type Motion = 'none' | 'subtle' | 'normal' | 'expressive'
+export type BranchBarWidth = 'thin' | 'medium' | 'thick'
+export type TabStyle = 'filled' | 'outlined' | 'minimal'
+export type TabDensity = 'compact' | 'comfortable' | 'spacious'
+export type TopbarDensity = 'compact' | 'comfortable'
 
 /** User-tunable configuration, persisted and editable as a JSON file. */
 export interface AppConfig {
@@ -208,8 +214,18 @@ export interface AppConfig {
   corners: Corners
   /** Terminal cursor shape. */
   cursorStyle: CursorStyle
-  /** Whether UI transitions/animations play. */
+  /** Whether UI transitions/animations play. Legacy; superseded by `motion`. */
   animations: boolean
+  /** Animation intensity: none → expressive. Drives durations/easings/scale. */
+  motion: Motion
+  /** Width of the colored branch identity bar (left rectangle). */
+  branchBarWidth: BranchBarWidth
+  /** Visual style of terminal tabs: filled / outlined / minimal. */
+  tabStyle: TabStyle
+  /** Vertical density of the tab strip. */
+  tabDensity: TabDensity
+  /** Vertical density of the workspace topbar. */
+  topbarDensity: TopbarDensity
   /** Accent color override id, 'custom', or 'theme' to use the theme's accent. */
   accent: string
   /** Custom accent hex used when accent === 'custom'. */
@@ -233,10 +249,28 @@ export interface AppConfig {
 }
 
 /** Persisted UI layout, reloaded on next launch. */
+/** A captured "turn" in a tab — bounded by foreground process going busy→idle. */
+export interface TurnRecord {
+  id: string
+  tabId: string
+  /** Working dir snapshotted (the tab's worktree path). */
+  cwd: string
+  /** Foreground program when the turn started (claude, codex, npm, …). */
+  command: string
+  startedAt: number
+  endedAt?: number
+  /** Dangling commit SHA from `git stash create -u` at turn start. '' = clean tree. */
+  preRef: string
+  /** Same, at turn end. Missing while the turn is still in progress. */
+  postRef?: string
+}
+
 export interface LayoutState {
   expandedRepoIds: string[]
   expandedBranches: string[] // `${repoId}::${branch}`
   activeTabId: string | null
+  /** Which repo (or '__local__') the user is currently focused on. Sticky across tab close/switch. */
+  activeRepoId?: string | null
 }
 
 /** The API exposed on `window.bonsai` by the preload script. */
@@ -245,6 +279,8 @@ export interface BonsaiApi {
     list(): Promise<Repo[]>
     add(): Promise<Repo | null>
     remove(id: string): Promise<void>
+    /** Persist a new repo order. Missing ids are appended at the end. */
+    reorder(orderedIds: string[]): Promise<Repo[]>
     branches(repoId: string): Promise<Branch[]>
   }
   worktree: {
@@ -266,8 +302,14 @@ export interface BonsaiApi {
     diffFile(cwd: string, file: string, staged: boolean): Promise<string>
     discard(cwd: string, file: string): Promise<void>
     readFile(cwd: string, relPath: string): Promise<{ content: string; truncated: boolean }>
+    /** Save UTF-8 content to a file inside a worktree. Path is sandboxed to cwd. */
+    writeFile(cwd: string, relPath: string, content: string): Promise<void>
     listDir(cwd: string, relPath: string): Promise<DirEntry[]>
     log(cwd: string): Promise<Commit[]>
+    /** Snapshot the working tree + untracked files into a dangling commit. SHA returned (or '' if clean). */
+    turnSnapshot(cwd: string): Promise<string>
+    /** Diff between two refs (use the SHAs from turnSnapshot). Returns unified diff text. */
+    turnDiff(cwd: string, baseRef: string, headRef: string): Promise<string>
     scripts(cwd: string): Promise<Array<{ name: string; command: string }>>
     makeTargets(cwd: string): Promise<string[]>
     runnables(cwd: string): Promise<RunnableGroup[]>
@@ -359,6 +401,8 @@ export interface BonsaiApi {
     openInEditor(path: string): Promise<boolean>
     /** Resolve the absolute filesystem path of a dropped File (Electron webUtils). */
     pathForFile(file: File): string
+    /** The user's home directory (used for the scratch / Local terminal). */
+    homeDir(): Promise<string>
   }
   onOpenSettings(cb: () => void): () => void
   onReloadPreview(cb: () => void): () => void

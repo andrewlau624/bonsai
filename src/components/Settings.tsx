@@ -174,10 +174,80 @@ function Appearance() {
       </div>
       <div className="set-row">
         <div className="set-label">
-          <span>Animations</span>
-          <span className="set-desc">Play transitions and motion across the UI.</span>
+          <span>Motion</span>
+          <span className="set-desc">Animation intensity across the UI. Expressive adds subtle hover lifts, slides, and scales — never bouncy.</span>
         </div>
-        <Switch on={config.animations} onChange={(v) => updateConfig({ animations: v })} />
+        <Seg
+          value={config.motion ?? (config.animations ? 'normal' : 'none')}
+          onChange={(v) => updateConfig({ motion: v, animations: v !== 'none' })}
+          options={[
+            { v: 'none', label: 'None' },
+            { v: 'subtle', label: 'Subtle' },
+            { v: 'normal', label: 'Normal' },
+            { v: 'expressive', label: 'Expressive' },
+          ]}
+        />
+      </div>
+
+      <h4 className="set-h">Tabs &amp; branches</h4>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Branch bar width</span>
+          <span className="set-desc">Thickness of the colored rectangle that marks each branch.</span>
+        </div>
+        <Seg
+          value={config.branchBarWidth ?? 'medium'}
+          onChange={(v) => updateConfig({ branchBarWidth: v })}
+          options={[
+            { v: 'thin', label: 'Thin' },
+            { v: 'medium', label: 'Medium' },
+            { v: 'thick', label: 'Thick' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Tab style</span>
+          <span className="set-desc">How a terminal tab looks when active.</span>
+        </div>
+        <Seg
+          value={config.tabStyle ?? 'filled'}
+          onChange={(v) => updateConfig({ tabStyle: v })}
+          options={[
+            { v: 'filled', label: 'Filled' },
+            { v: 'outlined', label: 'Outlined' },
+            { v: 'minimal', label: 'Minimal' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Tab density</span>
+          <span className="set-desc">Vertical spacing in the tab strip.</span>
+        </div>
+        <Seg
+          value={config.tabDensity ?? 'comfortable'}
+          onChange={(v) => updateConfig({ tabDensity: v })}
+          options={[
+            { v: 'compact', label: 'Compact' },
+            { v: 'comfortable', label: 'Cozy' },
+            { v: 'spacious', label: 'Spacious' },
+          ]}
+        />
+      </div>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Topbar density</span>
+          <span className="set-desc">Vertical padding in the workspace topbar.</span>
+        </div>
+        <Seg
+          value={config.topbarDensity ?? 'comfortable'}
+          onChange={(v) => updateConfig({ topbarDensity: v })}
+          options={[
+            { v: 'compact', label: 'Compact' },
+            { v: 'comfortable', label: 'Comfortable' },
+          ]}
+        />
       </div>
 
       <h4 className="set-h">Code &amp; terminal</h4>
@@ -332,11 +402,69 @@ function Profiles() {
 function ConfigTab() {
   const { config } = useApp()
   const [path, setPath] = useState('')
+  const [updater, setUpdater] = useState<import('../../shared/types').UpdaterState>({ kind: 'idle' })
+  const [checking, setChecking] = useState(false)
   useEffect(() => {
     void window.bonsai.config.path().then(setPath)
+    void window.bonsai.updater.state().then(setUpdater)
+    return window.bonsai.onUpdaterState(setUpdater)
   }, [])
+  const checkNow = async () => {
+    setChecking(true)
+    try {
+      await window.bonsai.updater.check()
+    } finally {
+      setChecking(false)
+    }
+  }
+  const stateLabel = (() => {
+    switch (updater.kind) {
+      case 'idle':
+        return 'Idle'
+      case 'checking':
+        return 'Checking…'
+      case 'uptodate':
+        return 'Up to date'
+      case 'available':
+        return `Update available: v${updater.version}`
+      case 'downloading':
+        return `Downloading v${updater.version} — ${Math.round(updater.progress * 100)}%`
+      case 'ready':
+        return `v${updater.version} ready — restart to install`
+      case 'error':
+        return `Error: ${updater.message}`
+    }
+  })()
   return (
     <>
+      <h4 className="set-h">Updates</h4>
+      <div className="set-row">
+        <div className="set-label">
+          <span>Status</span>
+          <span className="set-desc">{stateLabel}</span>
+        </div>
+        <button
+          className="btn ghost sm"
+          disabled={checking || updater.kind === 'checking' || updater.kind === 'downloading'}
+          onClick={checkNow}
+        >
+          <Icon name="fetch" size={13} /> Check for updates
+        </button>
+      </div>
+      {updater.kind === 'ready' || updater.kind === 'available' ? (
+        <div className="set-row">
+          <div className="set-label">
+            <span>Install</span>
+            <span className="set-desc">
+              The app will restart automatically once the new version is in place.
+            </span>
+          </div>
+          <button className="btn primary sm" onClick={() => window.bonsai.updater.install()}>
+            Install &amp; restart
+          </button>
+        </div>
+      ) : null}
+
       <h4 className="set-h">Config file</h4>
       <p className="set-intro">
         Everything here is stored as JSON on disk. You can edit it by hand — Bonsai reads it on next

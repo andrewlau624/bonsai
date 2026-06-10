@@ -424,6 +424,49 @@ export async function diffFile(cwd: string, file: string, staged: boolean): Prom
   }
 }
 
+// ---- Turn snapshots ----
+// Take a snapshot of the working tree (including untracked files) without
+// changing the index, working tree, refs, or stash list. `git stash create -u`
+// returns the SHA of a freshly written commit object that captures everything;
+// it's dangling, so git GC will eventually clean it up if we stop referencing it.
+// Returns '' when there is nothing to snapshot (clean tree).
+export async function turnSnapshot(cwd: string): Promise<string> {
+  try {
+    const sha = (await git(cwd).raw(['stash', 'create', '-u'])).trim()
+    return sha
+  } catch {
+    return ''
+  }
+}
+
+// Diff between two refs (or one ref vs HEAD when head is missing). If a ref is
+// empty (clean tree at that endpoint), substitute HEAD on that side so the diff
+// still makes sense.
+export async function turnDiff(
+  cwd: string,
+  baseRef: string,
+  headRef: string,
+): Promise<string> {
+  const g = git(cwd)
+  const base = baseRef || 'HEAD'
+  const head = headRef || 'HEAD'
+  if (base === head) return ''
+  try {
+    return await g.raw(['diff', base, head])
+  } catch {
+    return ''
+  }
+}
+
+// Write a UTF-8 file inside a worktree. Path is constrained to the worktree
+// so an editor save can't escape via "../" or absolute paths.
+export function writeFile(cwd: string, relPath: string, content: string): void {
+  const abs = path.resolve(cwd, relPath)
+  if (!abs.startsWith(path.resolve(cwd))) throw new Error('Path escapes worktree')
+  fs.mkdirSync(path.dirname(abs), { recursive: true })
+  fs.writeFileSync(abs, content, 'utf8')
+}
+
 const MAX_FILE_BYTES = 2 * 1024 * 1024
 
 export function readFile(cwd: string, relPath: string): { content: string; truncated: boolean } {
