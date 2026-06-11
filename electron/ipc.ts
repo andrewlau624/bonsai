@@ -105,6 +105,12 @@ export function registerIpc(): void {
   ipcMain.handle('git:checkout', (_e, repoId: string, branch: string) =>
     gitOps.checkout(repoPath(repoId), branch),
   )
+  ipcMain.handle('git:rebaseInProgress', (_e, repoId: string) =>
+    gitOps.isRebaseInProgress(repoPath(repoId)),
+  )
+  ipcMain.handle('git:rebaseAbort', (_e, repoId: string) =>
+    gitOps.rebaseAbort(repoPath(repoId)),
+  )
   ipcMain.handle('git:createBranch', (_e, repoId: string, name: string, from?: string) =>
     gitOps.createBranch(repoPath(repoId), name, from),
   )

@@ -30,6 +30,32 @@ export async function currentBranch(repoPath: string): Promise<string> {
   return name === 'HEAD' ? '(detached)' : name
 }
 
+/**
+ * Marker prefix on errors thrown from `checkout()` when the primary checkout is
+ * mid-rebase. The renderer keys off this to offer a one-click "abort + retry".
+ */
+export const REBASE_IN_PROGRESS_MARKER = '__BONSAI_REBASE_IN_PROGRESS__'
+
+/**
+ * Detect whether `repoPath`'s primary checkout is currently mid-rebase. Works
+ * for both the `apply` (am) and `merge` (interactive) backends.
+ */
+export function isRebaseInProgress(repoPath: string): boolean {
+  const gitDir = path.join(repoPath, '.git')
+  // In primary checkouts `.git` is a dir; in linked worktrees it's a file
+  // pointing at the real gitdir. The primary repoPath we get here is always a
+  // real checkout, so the simple form is enough.
+  return (
+    fs.existsSync(path.join(gitDir, 'rebase-merge')) ||
+    fs.existsSync(path.join(gitDir, 'rebase-apply'))
+  )
+}
+
+/** Abort an in-progress rebase, restoring the original HEAD. */
+export async function rebaseAbort(repoPath: string): Promise<void> {
+  await git(repoPath).raw(['rebase', '--abort'])
+}
+
 interface RawWorktree {
   path: string
   branch: string | null
@@ -61,11 +87,15 @@ export async function listBranches(repoPath: string): Promise<Branch[]> {
   const worktrees = await listWorktrees(repoPath)
   const byBranch = new Map(worktrees.filter((w) => w.branch).map((w) => [w.branch!, w.path]))
 
-  return summary.all.map((name) => ({
-    name,
-    current: name === summary.current,
-    worktreePath: byBranch.get(name) ?? null,
-  }))
+  // During a rebase / detached HEAD, `git branch` emits a pseudo-entry like
+  // `(no branch, rebasing main)`. Don't surface it as a switchable branch.
+  return summary.all
+    .filter((name) => !name.startsWith('('))
+    .map((name) => ({
+      name,
+      current: name === summary.current,
+      worktreePath: byBranch.get(name) ?? null,
+    }))
 }
 
 /**
@@ -78,6 +108,15 @@ export async function ensureWorktree(
   branch: string,
   carryEnv = true,
 ): Promise<Worktree> {
+  // Defensive guard: pseudo-branches like `(no branch, rebasing main)` are not
+  // valid refs. Filtering happens upstream in listBranches(), but a stale
+  // persisted tab could still reach here.
+  if (branch.startsWith('(')) {
+    throw new Error(
+      `"${branch}" isn't a real branch — it's a transient git state. ` +
+        `Finish or abort any in-progress rebase, then try again.`,
+    )
+  }
   const g = git(repoPath)
   const cur = await currentBranch(repoPath)
 
@@ -142,6 +181,13 @@ export async function fetch(repoPath: string): Promise<void> {
  */
 export async function checkout(repoPath: string, branch: string): Promise<void> {
   const g = git(repoPath)
+
+  // Mid-rebase, `git switch` refuses with a fatal error. Surface a structured
+  // marker so the renderer can offer a one-click "abort and retry" affordance.
+  if (isRebaseInProgress(repoPath)) {
+    throw new Error(`${REBASE_IN_PROGRESS_MARKER}:${branch}`)
+  }
+
   const heldElsewhere = async () => {
     const wt = (await listWorktrees(repoPath)).find((w) => w.branch === branch)
     return wt && path.resolve(wt.path) !== path.resolve(repoPath) ? wt : null

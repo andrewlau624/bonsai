@@ -300,6 +300,10 @@ export interface BonsaiApi {
     fetch(repoId: string): Promise<void>
     /** Switch the primary checkout's HEAD to `branch` (git switch). */
     checkout(repoId: string, branch: string): Promise<void>
+    /** True if the primary checkout is mid-rebase (.git/rebase-merge or rebase-apply). */
+    rebaseInProgress(repoId: string): Promise<boolean>
+    /** Abort an in-progress rebase, restoring the original HEAD. */
+    rebaseAbort(repoId: string): Promise<void>
     createBranch(repoId: string, name: string, from?: string): Promise<void>
     deleteBranch(repoId: string, name: string, force?: boolean): Promise<void>
     diffFile(cwd: string, file: string, staged: boolean): Promise<string>

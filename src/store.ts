@@ -470,7 +470,25 @@ export const useApp = create<AppState>((set, get) => ({
       await get().reloadBranches(repoId)
       void get().refreshStatus()
     } catch (err) {
-      alert(`Could not switch to ${branch}:\n${(err as Error).message}`)
+      const msg = (err as Error).message
+      // Surfaced by electron/git.ts checkout() when the primary checkout is
+      // mid-rebase — offer to abort the rebase and retry the switch.
+      if (msg.startsWith('__BONSAI_REBASE_IN_PROGRESS__:')) {
+        const ok = confirm(
+          `A rebase is in progress in this repo and is blocking the branch switch.\n\n` +
+            `Abort the rebase (restoring the pre-rebase state) and switch to "${branch}"?`,
+        )
+        if (ok) {
+          try {
+            await window.bonsai.git.rebaseAbort(repoId)
+            await get().checkoutBranch(repoId, branch)
+          } catch (e) {
+            alert(`Could not abort rebase:\n${(e as Error).message}`)
+          }
+        }
+        return
+      }
+      alert(`Could not switch to ${branch}:\n${msg}`)
     }
   },
 
